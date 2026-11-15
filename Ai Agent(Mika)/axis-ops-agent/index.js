@@ -76,7 +76,7 @@ Keep it under 120 words, conversational, and formatted strictly as spoken dialog
         "Authorization": `Bearer ${env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
+        model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: prompt }],
       }),
     });
