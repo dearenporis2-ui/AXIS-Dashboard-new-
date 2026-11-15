@@ -448,5 +448,5 @@ function splash(){
  return{ready,hide};
 }
 const sp=splash();
-Promise.all([store.load(),sp.ready]).then(([d])=>{db=d;document.body.classList.add('first');setTimeout(()=>document.body.classList.remove('first'),1400);render();sp.hide()}).catch(()=>{sp.hide();$('#app').innerHTML='<p class="empty">Couldn’t load your data. Reload the page; if this keeps happening, check your Firestore connection rules.</p>});
+Promise.all([store.load(),sp.ready]).then(([d])=>{db=d;document.body.classList.add('first');setTimeout(()=>document.body.classList.remove('first'),1400);render();sp.hide()}).catch(()=>{sp.hide();$('#app').innerHTML='<p class="empty">Couldn’t load your data. Reload the page; if this keeps happening, check your Firestore connection rules.</p>'});
 </script></body></html>
