@@ -118,10 +118,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-// 1. Define helpers FIRST so they are available immediately
+// Helper definitions first
 const $=s=>document.querySelector(s);
 const dlg=()=>$('#dlg');
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','":':'&quot;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,10);
 const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const todayS=()=>ymd(new Date());
@@ -528,8 +528,8 @@ async function splash(){
   uData[8]=cellPx;uData[9]=dotSize;uData[11]=cols;
   uData[12]=90;uData[13]=-0.1;uData[14]=3.2;uData[15]=0;
   uData[16]=0;uData[17]=0;uData[18]=1;uData[19]=0;
-  uData[20]=0.788;uData[21]=0.635;uData[22]=0.294;
-  uData[24]=0.95;uData[25]=0.92;uData[26]=0.85;
+  uData[20]=0.25; uData[21]=0.45; uData[22]=0.85; // Original blue tint
+  uData[24]=0.85; uData[25]=0.90; uData[26]=1.00; // Original hover color
   const start=performance.now();
   cv.classList.add('on');
   await new Promise(r=>setTimeout(r,120));
