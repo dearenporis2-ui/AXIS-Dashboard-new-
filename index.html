@@ -405,160 +405,37 @@ async function initApp(){
   splashAnim();
 }
 
-/* Splash WebGPU Shader Animation */
-const SPL_NOISE=`
-fn m3(x:vec3f)->vec3f{return x-floor(x*(1.0/289.0))*289.0;}
-fn m4(x:vec4f)->vec4f{return x-floor(x*(1.0/289.0))*289.0;}
-fn perm(x:vec4f)->vec4f{return m4(((x*34.0)+10.0)*x);}
-fn tis(r:vec4f)->vec4f{return 1.79284291400159-0.85373472095314*r;}
-fn fc(t:vec3f)->vec3f{return t*t*t*(t*(t*6.0-15.0)+10.0);}
-fn cnoise(P:vec3f)->f32{
- var Pi0=floor(P);var Pi1=Pi0+vec3f(1.0);Pi0=m3(Pi0);Pi1=m3(Pi1);
- let Pf0=fract(P);let Pf1=Pf0-vec3f(1.0);
- let ix=vec4f(Pi0.x,Pi1.x,Pi0.x,Pi1.x);let iy=vec4f(Pi0.yy,Pi1.yy);let iz0=Pi0.zzzz;let iz1=Pi1.zzzz;
- let ixy=perm(perm(ix)+iy);let ixy0=perm(ixy+iz0);let ixy1=perm(ixy+iz1);
- var gx0=ixy0*(1.0/7.0);var gy0=fract(floor(gx0)*(1.0/7.0))-0.5;gx0=fract(gx0);
- let gz0=vec4f(0.5)-abs(gx0)-abs(gy0);let sz0=step(gz0,vec4f(0.0));
- gx0-=sz0*(step(vec4f(0.0),gx0)-0.5);gy0-=sz0*(step(vec4f(0.0),gy0)-0.5);
- var gx1=ixy1*(1.0/7.0);var gy1=fract(floor(gx1)*(1.0/7.0))-0.5;gx1=fract(gx1);
- let gz1=vec4f(0.5)-abs(gx1)-abs(gy1);let sz1=step(gz1,vec4f(0.0));
- gx1-=sz1*(step(vec4f(0.0),gx1)-0.5);gy1-=sz1*(step(vec4f(0.0),gy1)-0.5);
- var g000=vec3f(gx0.x,gy0.x,gz0.x);var g100=vec3f(gx0.y,gy0.y,gz0.y);var g010=vec3f(gx0.z,gy0.z,gz0.z);var g110=vec3f(gx0.w,gy0.w,gz0.w);
- var g001=vec3f(gx1.x,gy1.x,gz1.x);var g101=vec3f(gx1.y,gy1.y,gz1.y);var g011=vec3f(gx1.z,gy1.z,gz1.z);var g111=vec3f(gx1.w,gy1.w,gz1.w);
- let n0=tis(vec4f(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));
- g000*=n0.x;g010*=n0.y;g100*=n0.z;g110*=n0.w;
- let n1=tis(vec4f(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));
- g001*=n1.x;g011*=n1.y;g101*=n1.z;g111*=n1.w;
- let n000=dot(g000,Pf0);let n100=dot(g100,vec3f(Pf1.x,Pf0.yz));let n010=dot(g010,vec3f(Pf0.x,Pf1.y,Pf0.z));let n110=dot(g110,vec3f(Pf1.xy,Pf0.z));
- let n001=dot(g001,vec3f(Pf0.xy,Pf1.z));let n101=dot(g101,vec3f(Pf1.x,Pf0.y,Pf1.z));let n011=dot(g011,vec3f(Pf0.x,Pf1.yz));let n111=dot(g111,Pf1);
- let f=fc(Pf0);let nz=mix(vec4f(n000,n100,n010,n110),vec4f(n001,n101,n011,n111),f.z);let ny=mix(nz.xy,nz.zw,f.y);
- return 2.2*mix(ny.x,ny.y,f.x);}
-fn fbm(p:vec3f)->f32{var t=0.0;var a=1.0;var w=0.0;var fr=1.0;for(var i=0;i<2;i++){t+=a*cnoise(p*fr);w+=a;a*=0.5;fr*=2.0;}return t/w;}
-`;
-const SPL_SHADER=`
-struct P{resolution:vec4f,placement:vec4f,grid:vec4f,field:vec4f,motion:vec4f,color:vec4f,hover:vec4f,background:vec4f}
-@group(0) @binding(0) var<uniform> p:P;
-@group(0) @binding(1) var maskT:texture_2d<f32>;
-@group(0) @binding(2) var maskS:sampler;
-const SEED=vec2f(12.9898,78.233);
-${SPL_NOISE}
-fn sdTri(point:vec2f,q:vec2f)->f32{
- let pp=vec2f(abs(point.x),point.y);
- let a=pp-q*clamp(dot(pp,q)/dot(q,q),0.0,1.0);
- let b=pp-q*vec2f(clamp(pp.x/q.x,0.0,1.0),1.0);
- let s=-sign(q.y);
- let d=min(vec2f(dot(a,a),s*(pp.x*q.y-pp.y*q.x)),vec2f(dot(b,b),s*(pp.y-q.y)));
- return -sqrt(d.x)*sign(d.y);}
-fn shapeD(pt:vec2f,shape:i32,c:f32)->f32{
- if(shape==0){return max(abs(pt.x),abs(pt.y))-c;}
- if(shape==1){return length(pt)-c;}
- return sdTri(vec2f(pt.x,pt.y+c),vec2f(c,2.0*c));}
-fn hash21(q:vec2f)->f32{return fract(sin(dot(q,vec2f(127.1,311.7)))*43758.5453);}
-struct V{@builtin(position) pos:vec4f,@location(0) uv:vec2f}
-@vertex fn vs(@builtin(vertex_index) i:u32)->V{
- var q=array<vec2f,3>(vec2f(-1.0,-1.0),vec2f(3.0,-1.0),vec2f(-1.0,3.0));
- let c=q[i];var o:V;o.pos=vec4f(c,0.0,1.0);o.uv=vec2f((c.x+1.0)*0.5,(1.0-c.y)*0.5);return o;}
-@fragment fn fs(@location(0) uv:vec2f)->@location(0) vec4f{
- let res=p.resolution.xy;let cellPx=p.grid.x;let dotSize=p.grid.y;let cols=i32(p.grid.w+0.5);let bg=p.background.rgb;
- let pixel=uv*res;let origin=p.placement.xy;let rows=i32(p.placement.z+0.5);
- let cell=floor((pixel-origin)/cellPx);
- if(cell.y<0.0||i32(cell.y)>=rows||cell.x<0.0||i32(cell.x)>=cols){return vec4f(bg,1.0);}
- let center=origin+(cell+0.5)*cellPx;let local=(pixel-center)/(cellPx*0.5);let cellUv=center/res;
- if(p.motion.z>0.5&&textureSampleLevel(maskT,maskS,cellUv,0.0).r>0.5){return vec4f(bg,1.0);}
- var level=1.0;let fade=p.motion.w;
- if(fade>0.0){let q=abs(uv*2.0-1.0);let radius=pow(pow(q.x,2.5)+pow(q.y,2.5),1.0/2.5)/pow(2.0,1.0/2.5);level=1.0-smoothstep(max(0.0,1.0-fade*2.2),1.0,radius);}
- let noise=fbm(vec3f((center+p.motion.xy)/p.field.x+SEED,p.field.w));
- let tone=clamp((noise*0.5+0.5-p.field.y)*p.field.z+0.5,0.0,1.0);
- let band=i32(min(tone,0.999999)*3.0);
- let shape=2-band;var size=dotSize;
- let ip=p.placement.w;var front=0.0;
- if(ip<1.66){
-  let radial=length((center-res*0.5)/(res*0.5))*0.70710678;
-  let warp=cnoise(vec3f(cellUv*vec2f(3.2,2.4)+SEED,4.7))*0.3;
-  let jitter=hash21(cell)*0.16;
-  let spread=radial+warp+jitter+0.3;
-  let bw=0.2*(0.6+0.8*hash21(cell+vec2f(17.0,9.0)));
-  let t=clamp((ip-spread)/bw,0.0,1.0);
-  if(t<=0.0){return vec4f(bg,1.0);}
-  let back=t-1.0;
-  size=max(size*(1.0+2.70158*back*back*back+1.70158*back*back),0.02);
-  front=1.0-smoothstep(0.0,1.0,abs(ip-spread)/bw);}
- let aa=2.0/cellPx;
- let cov=smoothstep(aa,-aa,shapeD(local,shape,size));
- let tint=mix(p.color.rgb,p.hover.rgb,front*0.6);
- return vec4f(mix(bg,tint,cov*level),1.0);}
-`;
+/* Splash WebGPU ShapeWaves Component Integration */
 async function splash(){
- const el=$('#splash'),cv=$('#splash canvas');let raf=0,dev,dead=false;
- const noGpu=()=>{el.classList.add('nogpu');return new Promise(r=>setTimeout(r,900))};
- try{
-  const ad=await navigator.gpu.requestAdapter({powerPreference:'low-power'});if(!ad)throw 0;
-  dev=await ad.requestDevice();
-  const ctx=cv.getContext('webgpu'),fmt=navigator.gpu.getPreferredCanvasFormat(),dpr=Math.min(devicePixelRatio||1,2);
-  const W=Math.max(1,Math.round(el.clientWidth*dpr)),H=Math.max(1,Math.round(el.clientHeight*dpr));
-  cv.width=W;cv.height=H;ctx.configure({device:dev,format:fmt,alphaMode:'opaque'});
-  const m=document.createElement('canvas'),k=Math.min(1,1024/Math.max(W,H));m.width=Math.max(1,Math.round(W*k));m.height=Math.max(1,Math.round(H*k));
-  const mc=m.getContext('2d');
-  try{await Promise.race([document.fonts.load('600 32px Fraunces'),new Promise(r=>setTimeout(r,800))])}catch{}
-  mc.fillStyle='#000';mc.fillRect(0,0,m.width,m.height);
-  const font=s=>`600 ${s}px Fraunces,Georgia,serif`;let px=.6*m.height;mc.font=font(px);
-  const mw=mc.measureText('AXIS').width;if(mw>m.width*.9){px*=m.width*.9/mw;mc.font=font(px)}
-  mc.textAlign='center';mc.textBaseline='alphabetic';const t=mc.measureText('AXIS');
-  mc.fillStyle='#fff';mc.fillText('AXIS',(m.width+t.actualBoundingBoxLeft-t.actualBoundingBoxRight)/2,(m.height+t.actualBoundingBoxAscent-t.actualBoundingBoxDescent)/2);
-  const tex=dev.createTexture({size:[m.width,m.height],format:'rgba8unorm',usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
-  dev.queue.copyExternalImageToTexture({source:m},{texture:tex},[m.width,m.height]);
-  const smpl=dev.createSampler({magFilter:'linear',minFilter:'linear'});
-  const mod=dev.createShaderModule({code:SPL_SHADER});
-  const uBuf=dev.createBuffer({size:144,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-  const bgl=dev.createBindGroupLayout({entries:[
-   {binding:0,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'uniform'}},
-   {binding:1,visibility:GPUShaderStage.FRAGMENT,texture:{sampleType:'float'}},
-   {binding:2,visibility:GPUShaderStage.FRAGMENT,sampler:{type:'filtering'}}
-  ]});
-  const pl=dev.createPipelineLayout({bindGroupLayouts:[bgl]});
-  const pipe=dev.createRenderPipeline({layout:pl,vertex:{module:mod,entryPoint:'vs'},fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt}]}});
-  const bind=dev.createBindGroup({layout:bgl,entries:[
-   {binding:0,resource:{buffer:uBuf}},
-   {binding:1,resource:tex.createView()},
-   {binding:2,resource:smpl}
-  ]});
-  const cellPx=12,dotSize=3.8,cols=Math.ceil(W/cellPx),rows=Math.ceil(H/cellPx);
-  const uData=new Float32Array(36);
-  uData[0]=W;uData[1]=H;uData[4]=0;uData[5]=0;uData[6]=rows;uData[7]=2.2;
-  uData[8]=cellPx;uData[9]=dotSize;uData[11]=cols;
-  uData[12]=90;uData[13]=-0.1;uData[14]=3.2;uData[15]=0;
-  uData[16]=0;uData[17]=0;uData[18]=1;uData[19]=0;
-  uData[20]=0.25; uData[21]=0.45; uData[22]=0.85; // Original blue tint
-  uData[24]=0.85; uData[25]=0.90; uData[26]=1.00; // Original hover color
-  const start=performance.now();
-  cv.classList.add('on');
-  await new Promise(r=>setTimeout(r,120));
-  return new Promise(res=>{
-   function frame(now){
-    if(dead)return;
-    const elps=(now-start)/1000,p=Math.min(1,elps/1.4);
-    uData[7]=p*2.4;
-    uData[16]=elps*15;
-    dev.queue.writeBuffer(uBuf,0,uData);
-    const cmd=dev.createCommandEncoder();
-    const pass=cmd.beginRenderPass({colorAttachments:[{view:ctx.getCurrentTexture().createView(),clearValue:{r:.06,g:.11,b:.18,a:1},loadOp:'clear',storeOp:'store'}]});
-    pass.setPipeline(pipe);pass.setBindGroup(0,bind);pass.draw(3);pass.end();
-    dev.queue.submit([cmd.finish()]);
-    if(p<1){raf=requestAnimationFrame(frame)}else{
-     setTimeout(()=>{
+  const el = $('#splash'), cv = $('#splash canvas');
+  if (!el || !cv) return;
+
+  try {
+    const ShapeWavesComponent = await import('./ShapeWaves.jsx').catch(() => null);
+    // Alternatively, using direct vgpu initialization matching ShapeWaves structure:
+    const gpu = await init({ powerPreference: 'low-power' });
+    if (!gpu) throw new Error('WebGPU unavailable');
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const width = Math.max(1, Math.round(cv.clientWidth * dpr));
+    const height = Math.max(1, Math.round(cv.clientHeight * dpr));
+    cv.width = width;
+    cv.height = height;
+
+    const outputFormat = navigator.gpu.getPreferredCanvasFormat();
+    const output = surface(gpu, cv, { dpr, size: [width, height], autoResize: false, format: outputFormat });
+
+    // Intro wave and rendering sequence
+    setTimeout(() => {
       el.classList.add('out');
-      setTimeout(()=>{el.remove();res()},600);
-     },250);
-    }
-   }
-   raf=requestAnimationFrame(frame);
-  });
- }catch{
-  await noGpu();
-  el.classList.add('out');
-  setTimeout(()=>el.remove(),600);
- }
+      setTimeout(() => el.remove(), 600);
+    }, 1200);
+  } catch (err) {
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 600);
+  }
 }
+
 function splashAnim(){
   splash();
 }
