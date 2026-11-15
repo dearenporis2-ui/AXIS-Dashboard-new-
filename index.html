@@ -118,6 +118,23 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
+// 1. Define helpers FIRST so they are available immediately
+const $=s=>document.querySelector(s);
+const dlg=()=>$('#dlg');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','":':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const todayS=()=>ymd(new Date());
+const addDays=(s,n)=>{const d=new Date(s+'T00:00');d.setDate(d.getDate()+n);return ymd(d)};
+const diff=s=>Math.round((new Date(s+'T00:00')-new Date(todayS()+'T00:00'))/864e5);
+const state=m=>{if(m.done)return['ok','Done'];if(!m.due)return['ok','No date'];const n=diff(m.due);return n<0?['bad','Overdue']:n<=30?['soon','Due soon']:['ok','Active']};
+const chip=m=>{const[k,l]=state(m);return`<span class="tag s-${k}">${l}</span>`};
+const rel=s=>{if(!s)return'';const n=diff(s);return n===0?'today':n<0?-n+'d ago':'in '+n+'d'};
+const cname=id=>(db.clients.find(c=>c.id===id)||{}).name||'—';
+const mineF=a=>mine?a.filter(x=>x.assignedTo===me):a;
+const lnk=(u,t)=>/^https?:\/\//i.test(u||'')?`<a href="${esc(u)}" target="_blank" rel="noopener">${t}</a> `:'';
+const title=(c,d)=>d[F[c][0][0]]||'';
+
 const firebaseConfig = {
   apiKey: "AIzaSyCLwX25jpMaQeMv39cz3OMFFGRDIJmlzMc",
   authDomain: "axis-ops-693d3.firebaseapp.com",
@@ -135,8 +152,8 @@ const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
 // Authorized Email Whitelist
-const ADMIN_EMAILS = ["dearenporice@gmail.com"];
-const STAFF_EMAILS = []; // Add staff emails here if needed
+const ADMIN_EMAILS = ["dearenporis2@gmail.com"];
+const STAFF_EMAILS = [];
 const ALLOWED_EMAILS = [...ADMIN_EMAILS, ...STAFF_EMAILS];
 
 const WORKER_BASE_URL = "https://axis-ops-agent.axis-ops.workers.dev";
@@ -221,21 +238,6 @@ const FirestoreStore={
 };
 const store=FirestoreStore;
 
-const $=s=>document.querySelector(s),dlg=$('#dlg');
-const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const uid=()=>Math.random().toString(36).slice(2,10);
-const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-const todayS=()=>ymd(new Date());
-const addDays=(s,n)=>{const d=new Date(s+'T00:00');d.setDate(d.getDate()+n);return ymd(d)};
-const diff=s=>Math.round((new Date(s+'T00:00')-new Date(todayS()+'T00:00'))/864e5);
-const state=m=>{if(m.done)return['ok','Done'];if(!m.due)return['ok','No date'];const n=diff(m.due);return n<0?['bad','Overdue']:n<=30?['soon','Due soon']:['ok','Active']};
-const chip=m=>{const[k,l]=state(m);return`<span class="tag s-${k}">${l}</span>`};
-const rel=s=>{if(!s)return'';const n=diff(s);return n===0?'today':n<0?-n+'d ago':'in '+n+'d'};
-const cname=id=>(db.clients.find(c=>c.id===id)||{}).name||'—';
-const mineF=a=>mine?a.filter(x=>x.assignedTo===me):a;
-const lnk=(u,t)=>/^https?:\/\//i.test(u||'')?`<a href="${esc(u)}" target="_blank" rel="noopener">${t}</a> `:'';
-const title=(c,d)=>d[F[c][0][0]]||'';
-
 function log(text){const a={id:uid(),at:Date.now(),by:me,text};db.activity.unshift(a);store.put('activity',a)}
 
 async function save(c,d,isNew,msg){
@@ -270,16 +272,17 @@ window.openForm=(c,id)=>{
    i2=`<select name="${k}">${o.map(([a,b])=>`<option value="${esc(a)}"${a==v?' selected':''}>${esc(b)}</option>`).join('')}</select>`}
   else i2=`<input name="${k}" type="${t||'text'}" value="${esc(v)}"${i===0?' required':''}>`;
   return`<label>${l}${i2}</label>`}).join('');
- dlg.innerHTML=`<form id="ff"><h2>${id?'Edit':'New'} ${NOUN[c]}</h2>${fields}<div class="acts">${id?'<button type="button" class="btn bad" data-del>Delete</button>':''}<span></span><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save ${NOUN[c]}</button></div></form>`;
- if(!dlg.open)dlg.showModal();
- $('#ff').onsubmit=e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));dlg.close();
+ const dModal = dlg();
+ dModal.innerHTML=`<form id="ff"><h2>${id?'Edit':'New'} ${NOUN[c]}</h2>${fields}<div class="acts">${id?'<button type="button" class="btn bad" data-del>Delete</button>':''}<span></span><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save ${NOUN[c]}</button></div></form>`;
+ if(!dModal.open)dModal.showModal();
+ $('#ff').onsubmit=e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));dModal.close();
   if(id){Object.assign(d,v);save(c,d,0,`Updated ${NOUN[c]} “${title(c,d)}”`)}
   else{Object.assign(d,v,{id:uid()});save(c,d,1,`Added ${NOUN[c]} “${title(c,d)}”`)}};
 };
 function remove(){
  const{c,id}=cur,d=db[c].find(x=>x.id===id);
  if(!confirm(`Delete ${NOUN[c]} “${title(c,d)}”?`))return;
- db[c]=db[c].filter(x=>x.id!==id);store.del(c,id);dlg.close();log(`Deleted ${NOUN[c]} “${title(c,d)}”`);render();
+ db[c]=db[c].filter(x=>x.id!==id);store.del(c,id);dlg().close();log(`Deleted ${NOUN[c]} “${title(c,d)}”`);render();
 }
 window.markDone=id=>{
  const m=db.maint.find(x=>x.id===id);
@@ -351,16 +354,17 @@ function render(){const r=location.hash.slice(2),v=V[r]?r:'dashboard',ch=v!==las
  const ind=$('.ind');ind.style.transform=`translateY(${prevI*38}px)`;ind.offsetHeight;ind.style.transform=`translateY(${i*38}px)`;lastV=v;prevI=i}
 
 /* Search (Ctrl+K) */
-function openSearch(){dlg.innerHTML='<input id="q" placeholder="Search leads, clients, projects, tasks" autocomplete="off" style="width:100%;padding:10px;font:inherit;border:1px solid var(--line);border-radius:6px"><div id="res"></div>';if(!dlg.open)dlg.showModal();$('#q').focus()}
+function openSearch(){const dModal=dlg();dModal.innerHTML='<input id="q" placeholder="Search leads, clients, projects, tasks" autocomplete="off" style="width:100%;padding:10px;font:inherit;border:1px solid var(--line);border-radius:6px"><div id="res"></div>';if(!dModal.open)dModal.showModal();$('#q').focus()}
 function hits(q){q=q.toLowerCase();const o=[];for(const k of['leads','clients','projects','maint'])for(const d of db[k])if(Object.values(d).join(' ').toLowerCase().includes(q))o.push([k,d]);return o.slice(0,8)}
 function showHits(q){const h=q?hits(q):[];$('#res').innerHTML=q&&!h.length?'<p class="mut">No matches.</p>':h.map(([k,d])=>`<div class="li" data-open="${k}:${d.id}"><span>${esc(title(k,d))}</span><span class="mut">${NOUN[k]}</span></div>`).join('')}
 
 document.addEventListener('click',e=>{
  const t=e.target;
- if(t===dlg){dlg.close();return}
+ const dModal = dlg();
+ if(t===dModal){dModal.close();return}
  if(t.closest('a'))return;
  const g=s=>t.closest(s);let x;
- if(g('[data-close]'))dlg.close();
+ if(g('[data-close]'))dModal.close();
  else if(x=g('[data-new]'))openForm(x.dataset.new);
  else if(x=g('[data-done]'))markDone(x.dataset.done);
  else if(g('[data-seed]'))seed();
@@ -556,7 +560,7 @@ async function splash(){
  }
 }
 function splashAnim(){
-  // Handled inside initApp after auth & loading
+  splash();
 }
 </script>
 </body>
