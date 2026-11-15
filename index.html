@@ -183,7 +183,7 @@ async function save(c,d,isNew,msg){
 
 window.openForm=(c,id)=>{
  cur={c,id};
- const d=id?db[c].find(x=>x.id===id):{...DEF[c],assignedTo:me};
+ const d=id?db[c].find(x=>x.id===id):(c==='clients'?{}:{...DEF[c],assignedTo:me});
  const fields=F[c].map(([k,l,t],i)=>{const v=d[k]??'';let i2;
   if(t==='text')i2=`<textarea name="${k}" rows="3">${esc(v)}</textarea>`;
   else if(Array.isArray(t)||t==='client'){
