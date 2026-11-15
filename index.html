@@ -88,15 +88,15 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 </head>
 <body><div id="splash"><canvas></canvas><b class="sw">AXIS</b></div><div id="app"><p class="empty">Loading…</p></div><dialog id="dlg"></dialog>
 
-<!-- Live Voice Modal with "Hey Bella" Hands-Free Wake Word Engine -->
+<!-- Live Voice Modal with Manual Click-to-Speak Control -->
 <dialog id="bellaVoiceDlg" style="background:var(--nav);color:#fff;border:1px solid var(--gold);border-radius:16px;padding:24px;width:min(440px,92vw);">
   <h2 style="color:var(--gold);margin-top:0;font-family:Fraunces,serif;">🎙️ Live with Bella</h2>
-  <p id="bellaStatus" style="color:#b9c6df;font-size:13px;margin-bottom:12px;">Click below to enable hands-free mode, then say "Hey Bella" to talk.</p>
+  <p id="bellaStatus" style="color:#b9c6df;font-size:13px;margin-bottom:12px;">Click the button below to start speaking, and click again when done.</p>
   <div id="bellaTranscript" style="background:#13233f;border:1px solid #2a4272;border-radius:8px;padding:12px;min-height:90px;max-height:160px;overflow-y:auto;margin-bottom:16px;font-size:13px;color:#dbe4f5;line-height:1.4;">
-    <i>Awaiting hands-free activation...</i>
+    <i>Ready. Click "Click to Speak" and talk to Bella...</i>
   </div>
   <div style="display:flex;gap:10px;">
-    <button id="micBtn" class="btn pri" style="flex:1;background:var(--gold);color:var(--ink);font-weight:600;padding:10px;">Toggle Hands-Free Mode 🎙️</button>
+    <button id="micBtn" class="btn pri" style="flex:1;background:var(--gold);color:var(--ink);font-weight:600;padding:10px;">Click to Speak 🎙️</button>
     <button class="btn" id="clearMemory" style="background:#1a2d52;color:#dbe4f5;border-color:#2a4272;">Clear Memory</button>
     <button class="btn" id="closeVoice" style="background:#1a2d52;color:#fff;border-color:#2a4272;">Close</button>
   </div>
@@ -290,144 +290,94 @@ function openSearch(){dlg.innerHTML='<input id="q" placeholder="Search leads, cl
 function hits(q){q=q.toLowerCase();const o=[];for(const k of['leads','clients','projects','maint'])for(const d of db[k])if(Object.values(d).join(' ').toLowerCase().includes(q))o.push([k,d]);return o.slice(0,8)}
 function showHits(q){const h=q?hits(q):[];$('#res').innerHTML=q&&!h.length?'<p class="mut">No matches.</p>':h.map(([k,d])=>`<div class="li" data-open="${k}:${d.id}"><span>${esc(title(k,d))}</span><span class="mut">${NOUN[k]}</span></div>`).join('')}
 
-/* "Hey Bella" Wake Word Hands-Free Engine */
+/* Click-to-Speak Manual Voice Engine */
 const voiceDlg=$('#bellaVoiceDlg');
 let recognition=null;
-let isListeningForWakeWord=false;
-let isUserSpeaking=false;
+let isRecording=false;
 let chatHistory=[];
 
 if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SpeechRecognition();
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  recognition.continuous = false;
+  recognition.interimResults = false;
 
   recognition.onresult = async (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; ++i) {
-      transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
+    const spokenText = event.results[0][0].transcript;
+    stopRecordingState();
+    
+    chatHistory.push({ role: "user", content: spokenText });
+    $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
+    $('#bellaStatus').textContent = "Bella is thinking...";
 
-    if (!isUserSpeaking) {
-      if (transcript.includes('bella') || transcript.includes('hey bella')) {
-        isUserSpeaking = true;
-        $('#bellaStatus').textContent = "Listening to your command...";
-        $('#micBtn').textContent = "Listening... Speak now 🔴";
-        $('#micBtn').style.background = "#b3412e";
-        $('#micBtn').style.color = "#fff";
-        playWakeChime();
-      }
-    } else {
-      recognition.stop();
-      isUserSpeaking = false;
+    try {
+      const res = await fetch(`${WORKER_BASE_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ history: chatHistory })
+      });
+      const data = await res.json();
       
-      const promptText = transcript.replace(/hey bella|bella/gi, '').trim();
-      if (!promptText) {
-        $('#bellaStatus').textContent = "Say 'Hey Bella' to try again.";
-        resetMicButton();
-        restartWakeWordListener();
-        return;
-      }
-
-      chatHistory.push({ role: "user", content: promptText });
+      chatHistory.push({ role: "assistant", content: data.reply });
       $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
-      $('#bellaStatus').textContent = "Bella is thinking...";
+      $('#bellaStatus').textContent = "Playing response...";
 
-      try {
-        const res = await fetch(`${WORKER_BASE_URL}/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ history: chatHistory })
-        });
-        const data = await res.json();
-        
-        chatHistory.push({ role: "assistant", content: data.reply });
-        $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
-        $('#bellaStatus').textContent = "Playing response...";
-
-        const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
-        audio.play();
-        audio.onended = () => { 
-          $('#bellaStatus').textContent = "Listening for 'Hey Bella'...";
-          resetMicButton();
-          restartWakeWordListener();
-        };
-      } catch (err) {
-        $('#bellaStatus').textContent = "Error communicating with Bella.";
-        resetMicButton();
-        restartWakeWordListener();
-      }
+      const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
+      audio.play();
+      audio.onended = () => { 
+        $('#bellaStatus').textContent = "Click the button below when you're ready to speak again."; 
+      };
+    } catch (err) {
+      $('#bellaStatus').textContent = "Error communicating with Bella.";
     }
   };
 
-  recognition.onerror = () => {
-    if (isListeningForWakeWord) {
-      setTimeout(() => { try { recognition.start(); } catch(err){} }, 1000);
-    }
+  recognition.onerror = (e) => {
+    console.log("Speech recognition error:", e.error);
+    stopRecordingState();
   };
 
   recognition.onend = () => {
-    if (isListeningForWakeWord && !isUserSpeaking) {
-      try { recognition.start(); } catch(err){}
+    if (isRecording) {
+      stopRecordingState();
     }
   };
 }
 
-function restartWakeWordListener() {
-  if (recognition && isListeningForWakeWord) {
-    try { recognition.start(); } catch(err){}
-  }
-}
-
-function resetMicButton() {
+function stopRecordingState() {
+  isRecording = false;
   const micBtn = $('#micBtn');
   if (micBtn) {
-    micBtn.textContent = "Toggle Hands-Free Mode 🎙️";
+    micBtn.textContent = "Click to Speak 🎙️";
     micBtn.style.background = "var(--gold)";
     micBtn.style.color = "var(--ink)";
   }
 }
 
-function playWakeChime() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-    gain.gain.setValueAtTime(0.1, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
-  } catch(e){}
-}
-
 document.addEventListener('click',e=>{
- const t=e.target;if(t===dlg){dlg.close();return}if(t===voiceDlg){voiceDlg.close();isListeningForWakeWord=false;if(recognition)recognition.stop();return}if(t.closest('a'))return;
+ const t=e.target;
+ if(t===dlg){dlg.close();return}
+ if(t===voiceDlg){voiceDlg.close();isRecording=false;if(recognition)recognition.stop();return}
+ if(t.id==='closeVoice'){voiceDlg.close();isRecording=false;if(recognition)recognition.stop();return}
+ if(t.closest('a'))return;
  const g=s=>t.closest(s);let x;
  if(g('[data-close]'))dlg.close();
- else if(t.id==='closeVoice'){voiceDlg.close();isListeningForWakeWord=false;if(recognition)recognition.stop();}
- else if(t.id==='micBtn'){
-   if(!isListeningForWakeWord){
-     isListeningForWakeWord=true;
-     $('#bellaStatus').textContent = "Listening for 'Hey Bella'...";
-     t.textContent = "Stop Hands-Free 🛑";
+ else if(t.id==='micBtn'&&recognition){
+   if(!isRecording){
+     isRecording=true;
+     t.textContent = "Listening... Click when done 🔴";
      t.style.background = "#b3412e";
      t.style.color = "#fff";
+     $('#bellaStatus').textContent = "Listening to your voice...";
      try{recognition.start();}catch(err){}
    } else {
-     isListeningForWakeWord=false;
+     stopRecordingState();
      try{recognition.stop();}catch(err){}
-     resetMicButton();
-     $('#bellaStatus').textContent = "Hands-free mode paused.";
+     $('#bellaStatus').textContent = "Processing speech...";
    }
  }
  else if(t.id==='clearMemory'){chatHistory=[];$('#bellaTranscript').innerHTML='<i>Memory cleared. Ready for a new topic...</i>';}
- else if(g('[data-live-bella]')){voiceDlg.showModal();if(!chatHistory.length)$('#bellaTranscript').innerHTML='<i>Ready. Click Toggle Hands-Free Mode and say "Hey Bella"...</i>';$('#bellaStatus').textContent='Click the button below to enable listening mode.'}
+ else if(g('[data-live-bella]')){voiceDlg.showModal();if(!chatHistory.length)$('#bellaTranscript').innerHTML='<i>Ready. Click "Click to Speak" and talk to Bella...</i>';$('#bellaStatus').textContent='Click the button below to start speaking.'}
  else if(x=g('[data-new]'))openForm(x.dataset.new);
  else if(x=g('[data-done]'))markDone(x.dataset.done);
  else if(g('[data-seed]'))seed();
