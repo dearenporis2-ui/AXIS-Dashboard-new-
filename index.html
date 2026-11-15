@@ -109,14 +109,14 @@ const firestore = getFirestore(app);
 const WORKER_BASE_URL = "https://axis-ops-agent.axis-ops.workers.dev";
 
 const STAGES=['Inquiry / Scope','Proposal / Quoted','Active Build','Completed / Handed Over','Archived'];
-const USERS=['Ronny','Associate'],HOSTS=['Netlify','Firebase','Vercel','Supabase','Cloudflare','GitHub Pages'];
+const USERS=['Dearen','Associate'],HOSTS=['Netlify','Firebase','Vercel','Supabase','Cloudflare','GitHub Pages'];
 const MT=['Domain (Namecheap)','SSL certificate','Hosting / database health','Uptime (UptimeRobot)','Backup'];
 const PS=['Planning','In progress','Live','Done'];
 const F={
- leads:[['name','Lead / project name'],['company','Company'],['contact','Email or phone'],['stack','Tech stack needed'],['budget','Budget (SCR)','number'],['stage','Stage',STAGES],['owner','Assigned to',USERS],['scope','Scope notes','text']],
+ leads:[['name','Lead / project name'],['company','Company'],['contact','Email or phone'],['stack','Tech stack needed'],['budget','Budget (SCR)','number'],['stage','Stage',STAGES],['assignedTo','Assigned to',USERS],['scope','Scope notes','text']],
  clients:[['name','Client name'],['contact','Email or phone'],['notes','Notes','text']],
- projects:[['name','Project name'],['clientId','Client','client'],['stack','Tech stack'],['host','Hosting',HOSTS],['url','Live URL'],['repo','GitHub repo URL'],['due','Milestone deadline','date'],['status','Status',PS],['owner','Assigned to',USERS]],
- maint:[['title','Task'],['clientId','Client','client'],['type','Type',MT],['due','Due date','date'],['every','Repeats every (days)','number'],['owner','Assigned to',USERS],['notes','Notes','text']]
+ projects:[['name','Project name'],['clientId','Client','client'],['stack','Tech stack'],['host','Hosting',HOSTS],['url','Live URL'],['repo','GitHub repo URL'],['due','Milestone deadline','date'],['status','Status',PS],['assignedTo','Assigned to',USERS]],
+ maint:[['title','Task'],['clientId','Client','client'],['type','Type',MT],['due','Due date','date'],['every','Repeats every (days)','number'],['assignedTo','Assigned to',USERS],['notes','Notes','text']]
 };
 const NOUN={leads:'lead',clients:'client',projects:'project',maint:'maintenance task'};
 const DEF={leads:{stage:STAGES[0]},projects:{status:'Planning'},maint:{type:MT[0]}};
@@ -156,7 +156,7 @@ const state=m=>{if(m.done)return['ok','Done'];if(!m.due)return['ok','No date'];c
 const chip=m=>{const[k,l]=state(m);return`<span class="tag s-${k}">${l}</span>`};
 const rel=s=>{if(!s)return'';const n=diff(s);return n===0?'today':n<0?-n+'d ago':'in '+n+'d'};
 const cname=id=>(db.clients.find(c=>c.id===id)||{}).name||'—';
-const mineF=a=>mine?a.filter(x=>x.owner===me):a;
+const mineF=a=>mine?a.filter(x=>x.assignedTo===me):a;
 const lnk=(u,t)=>/^https?:\/\//i.test(u||'')?`<a href="${esc(u)}" target="_blank" rel="noopener">${t}</a> `:'';
 const title=(c,d)=>d[F[c][0][0]]||'';
 
@@ -183,7 +183,7 @@ async function save(c,d,isNew,msg){
 
 window.openForm=(c,id)=>{
  cur={c,id};
- const d=id?db[c].find(x=>x.id===id):{...DEF[c],owner:me};
+ const d=id?db[c].find(x=>x.id===id):{...DEF[c],assignedTo:me};
  const fields=F[c].map(([k,l,t],i)=>{const v=d[k]??'';let i2;
   if(t==='text')i2=`<textarea name="${k}" rows="3">${esc(v)}</textarea>`;
   else if(Array.isArray(t)||t==='client'){
@@ -211,9 +211,9 @@ window.markDone=id=>{
 function seed(){
  const t=todayS(),c={id:uid(),name:'Sample Café',contact:'cafe@example.com'};
  db.clients.push(c);
- db.leads.push({id:uid(),name:'Booking site',company:'Sample Villa',contact:'+248 2 000 000',stack:'HTML, Firebase',budget:12000,stage:STAGES[0],owner:'Ronny',scope:'Booking form and gallery'},{id:uid(),name:'Menu redesign',company:'Sample Café',stage:STAGES[1],budget:6000,owner:'Associate'});
- db.projects.push({id:uid(),name:'Café website',clientId:c.id,stack:'HTML, Firebase',host:'Netlify',url:'https://example.com',due:addDays(t,10),status:'In progress',owner:'Ronny'});
- db.maint.push({id:uid(),title:'Renew samplecafe.sc',clientId:c.id,type:MT[0],due:addDays(t,-2),every:365,owner:'Ronny'},{id:uid(),title:'SSL check',clientId:c.id,type:MT[1],due:addDays(t,12),every:90,owner:'Associate'},{id:uid(),title:'Backup log',clientId:c.id,type:MT[4],due:addDays(t,60),every:30,owner:'Ronny'});
+ db.leads.push({id:uid(),name:'Booking site',company:'Sample Villa',contact:'+248 2 000 000',stack:'HTML, Firebase',budget:12000,stage:STAGES[0],assignedTo:'Dearen',scope:'Booking form and gallery'},{id:uid(),name:'Menu redesign',company:'Sample Café',stage:STAGES[1],budget:6000,assignedTo:'Associate'});
+ db.projects.push({id:uid(),name:'Café website',clientId:c.id,stack:'HTML, Firebase',host:'Netlify',url:'https://example.com',due:addDays(t,10),status:'In progress',assignedTo:'Dearen'});
+ db.maint.push({id:uid(),title:'Renew samplecafe.sc',clientId:c.id,type:MT[0],due:addDays(t,-2),every:365,assignedTo:'Dearen'},{id:uid(),title:'SSL check',clientId:c.id,type:MT[1],due:addDays(t,12),every:90,assignedTo:'Associate'},{id:uid(),title:'Backup log',clientId:c.id,type:MT[4],due:addDays(t,60),every:30,assignedTo:'Dearen'});
  ['leads','clients','projects','maint'].forEach(k=>db[k].forEach(d=>store.put(k,d)));
  log('Loaded sample data');render();
 }
@@ -222,7 +222,7 @@ function exportJSON(){const a=document.createElement('a');a.href=URL.createObjec
 /* Views */
 const hdr=(t,c,mi=1)=>`<div class="top"><h1>${t}</h1>${mi?`<label class="chk"><input type="checkbox" id="mine"${mine?' checked':''}> Mine only</label>`:''}${c?`<button class="btn pri" data-new="${c}">New ${NOUN[c]}</button>`:''}</div>`;
 const none=(c,t)=>`<div class="card empty">${t}<br><br><button class="btn pri" data-new="${c}">Add ${NOUN[c]}</button></div>`;
-const greet=()=>{const h=new Date().getHours();return`Good ${h<12?'morning':h<18?'afternoon':'evening'}${me==='Ronny'?', Ronny':''}<small>${new Date().toLocaleDateString([],{weekday:'long',day:'numeric',month:'long'})}</small>`};
+const greet=()=>{const h=new Date().getHours();return`Good ${h<12?'morning':h<18?'afternoon':'evening'}${me==='Dearen'?', Dearen':''}<small>${new Date().toLocaleDateString([],{weekday:'long',day:'numeric',month:'long'})}</small>`};
 const V={
  dashboard(){
   if(!['leads','clients','projects','maint'].some(k=>db[k].length))return hdr(greet(),0,0)+`<div class="card empty">Nothing tracked yet. Add your first lead or client, or fill the app with sample data to try it out.<br><br><button class="btn pri" data-new="leads">Add a lead</button> <button class="btn" data-seed>Load sample data</button></div>`;
@@ -237,18 +237,18 @@ const V={
  pipeline(){
   const L=mineF(db.leads);
   if(!db.leads.length)return hdr('Pipeline','leads')+none('leads','No leads yet. Add an inquiry, then drag it across the stages.');
-  return hdr('Pipeline','leads')+`<div class="board">${STAGES.map((s,i)=>{const a=L.filter(l=>l.stage===s);return`<div class="col" data-stage="${i}"><h3>${s}<span>${a.length}</span></h3>${a.map(l=>`<div class="lead" draggable="true" data-drag="${l.id}" data-open="leads:${l.id}"><b>${esc(l.name)}</b><div class="mut">${esc(l.company)}</div><div class="meta"><span>${l.budget?'SCR '+Number(l.budget).toLocaleString():''}</span><span class="tag">Assigned: ${esc(l.owner)}</span></div></div>`).join('')}</div>`}).join('')}</div>`},
+  return hdr('Pipeline','leads')+`<div class="board">${STAGES.map((s,i)=>{const a=L.filter(l=>l.stage===s);return`<div class="col" data-stage="${i}"><h3>${s}<span>${a.length}</span></h3>${a.map(l=>`<div class="lead" draggable="true" data-drag="${l.id}" data-open="leads:${l.id}"><b>${esc(l.name)}</b><div class="mut">${esc(l.company)}</div><div class="meta"><span>${l.budget?'SCR '+Number(l.budget).toLocaleString():''}</span><span class="tag">Assigned: ${esc(l.assignedTo)}</span></div></div>`).join('')}</div>`}).join('')}</div>`},
  clients(){
   if(!db.clients.length)return hdr('Clients','clients',0)+none('clients','No clients yet. Clients link to projects and maintenance tasks.');
   return hdr('Clients','clients',0)+`<div class="wrap"><table><tr><th>Client<th>Contact<th>Projects<th>Notes</tr>${db.clients.map(c=>`<tr class="row" data-open="clients:${c.id}"><td><b>${esc(c.name)}</b><td>${esc(c.contact)}<td>${db.projects.filter(p=>p.clientId===c.id).length}<td class="mut">${esc(c.notes)}</tr>`).join('')}</table></div>`},
  projects(){
   const P=mineF(db.projects);
   if(!db.projects.length)return hdr('Projects','projects')+none('projects','No projects yet. Track the stack, repo, hosting and deadline for each build.');
-  return hdr('Projects','projects')+`<div class="wrap"><table><tr><th>Project<th>Client<th>Stack<th>Hosting<th>Links<th>Deadline<th>Status<th>Assigned to</tr>${P.map(p=>`<tr class="row" data-open="projects:${p.id}"><td><b>${esc(p.name)}</b><td>${esc(cname(p.clientId))}<td>${esc(p.stack)}<td>${esc(p.host)}<td>${lnk(p.url,'live')}${lnk(p.repo,'repo')}<td>${esc(p.due)} ${p.due?chip({due:p.due,done:['Live','Done'].includes(p.status)}):''}<td>${esc(p.status)}<td>${esc(p.owner)}</tr>`).join('')}</table></div>`},
+  return hdr('Projects','projects')+`<div class="wrap"><table><tr><th>Project<th>Client<th>Stack<th>Hosting<th>Links<th>Deadline<th>Status<th>Assigned to</tr>${P.map(p=>`<tr class="row" data-open="projects:${p.id}"><td><b>${esc(p.name)}</b><td>${esc(cname(p.clientId))}<td>${esc(p.stack)}<td>${esc(p.host)}<td>${lnk(p.url,'live')}${lnk(p.repo,'repo')}<td>${esc(p.due)} ${p.due?chip({due:p.due,done:['Live','Done'].includes(p.status)}):''}<td>${esc(p.status)}<td>${esc(p.assignedTo)}</tr>`).join('')}</table></div>`},
  maintenance(){
   const M=mineF(db.maint).slice().sort((a,b)=>(a.done?1:0)-(b.done?1:0)||(a.due||'9').localeCompare(b.due||'9'));
   if(!db.maint.length)return hdr('Maintenance','maint')+none('maint','No tasks yet. Add domain renewals, SSL checks, uptime monitors and backups.');
-  return hdr('Maintenance','maint')+`<div class="wrap"><table><tr><th>Task<th>Client<th>Type<th>Due<th>Status<th>Assigned to<th></tr>${M.map(m=>`<tr class="row" data-open="maint:${m.id}"><td><b>${esc(m.title)}</b><td>${esc(cname(m.clientId))}<td>${esc(m.type)}<td>${esc(m.due)} <span class="mut">${m.done?'':rel(m.due)}</span><td>${chip(m)}<td>${esc(m.owner)}<td>${m.done?'':`<button class="btn sm" data-done="${m.id}">Mark done</button>`}</tr>`).join('')}</table></div>`},
+  return hdr('Maintenance','maint')+`<div class="wrap"><table><tr><th>Task<th>Client<th>Type<th>Due<th>Status<th>Assigned to<th></tr>${M.map(m=>`<tr class="row" data-open="maint:${m.id}"><td><b>${esc(m.title)}</b><td>${esc(cname(m.clientId))}<td>${esc(m.type)}<td>${esc(m.due)} <span class="mut">${m.done?'':rel(m.due)}</span><td>${chip(m)}<td>${esc(m.assignedTo)}<td>${m.done?'':`<button class="btn sm" data-done="${m.id}">Mark done</button>`}</tr>`).join('')}</table></div>`},
  activity(){
   const A=db.activity;
   if(!A.length)return hdr('Activity',0,0)+'<div class="card empty">No activity yet. Every change you or your associate make shows up here.</div>';
@@ -448,5 +448,5 @@ function splash(){
  return{ready,hide};
 }
 const sp=splash();
-Promise.all([store.load(),sp.ready]).then(([d])=>{db=d;document.body.classList.add('first');setTimeout(()=>document.body.classList.remove('first'),1400);render();sp.hide()}).catch(()=>{sp.hide();$('#app').innerHTML='<p class="empty">Couldn’t load your data. Reload the page; if this keeps happening, check your Firestore connection rules.</p>'});
+Promise.all([store.load(),sp.ready]).then(([d])=>{db=d;document.body.classList.add('first');setTimeout(()=>document.body.classList.remove('first'),1400);render();sp.hide()}).catch(()=>{sp.hide();$('#app').innerHTML='<p class="empty">Couldn’t load your data. Reload the page; if this keeps happening, check your Firestore connection rules.</p>});
 </script></body></html>
