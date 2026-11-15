@@ -88,15 +88,18 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 </head>
 <body><div id="splash"><canvas></canvas><b class="sw">AXIS</b></div><div id="app"><p class="empty">Loading…</p></div><dialog id="dlg"></dialog>
 
-<!-- Live Voice Modal with Manual Click-to-Speak Control -->
-<dialog id="bellaVoiceDlg" style="background:var(--nav);color:#fff;border:1px solid var(--gold);border-radius:16px;padding:24px;width:min(440px,92vw);">
-  <h2 style="color:var(--gold);margin-top:0;font-family:Fraunces,serif;">🎙️ Live with Bella</h2>
-  <p id="bellaStatus" style="color:#b9c6df;font-size:13px;margin-bottom:12px;">Click the button below to start speaking, and click again when done.</p>
-  <div id="bellaTranscript" style="background:#13233f;border:1px solid #2a4272;border-radius:8px;padding:12px;min-height:90px;max-height:160px;overflow-y:auto;margin-bottom:16px;font-size:13px;color:#dbe4f5;line-height:1.4;">
-    <i>Ready. Click "Click to Speak" and talk to Bella...</i>
+<!-- Live Chat Modal with Typing Interface -->
+<dialog id="bellaVoiceDlg" style="background:var(--nav);color:#fff;border:1px solid var(--gold);border-radius:16px;padding:24px;width:min(480px,92vw);">
+  <h2 style="color:var(--gold);margin-top:0;font-family:Fraunces,serif;">💬 Chat with Bella</h2>
+  <p id="bellaStatus" style="color:#b9c6df;font-size:13px;margin-bottom:12px;">Type a message below to chat with your AI Operations Assistant.</p>
+  <div id="bellaTranscript" style="background:#13233f;border:1px solid #2a4272;border-radius:8px;padding:12px;min-height:120px;max-height:220px;overflow-y:auto;margin-bottom:16px;font-size:13px;color:#dbe4f5;line-height:1.4;">
+    <i>Ready. Type your message below...</i>
   </div>
-  <div style="display:flex;gap:10px;">
-    <button id="micBtn" class="btn pri" style="flex:1;background:var(--gold);color:var(--ink);font-weight:600;padding:10px;">Click to Speak 🎙️</button>
+  <div style="display:flex;gap:8px;margin-bottom:10px;">
+    <input type="text" id="chatInput" placeholder="Ask Bella about leads, projects, tasks..." style="flex:1;background:#1a2d52;color:#fff;border:1px solid #2a4272;border-radius:8px;padding:9px 12px;font:inherit;">
+    <button id="sendChatBtn" class="btn pri" style="background:var(--gold);color:var(--ink);font-weight:600;padding:9px 16px;">Send ➔</button>
+  </div>
+  <div style="display:flex;gap:10px;justify-content:flex-end;">
     <button class="btn" id="clearMemory" style="background:#1a2d52;color:#dbe4f5;border-color:#2a4272;">Clear Memory</button>
     <button class="btn" id="closeVoice" style="background:#1a2d52;color:#fff;border-color:#2a4272;">Close</button>
   </div>
@@ -129,8 +132,8 @@ const PS=['Planning','In progress','Live','Done'];
 const F={
  leads:[['name','Lead / project name'],['company','Company'],['contact','Email or phone'],['stack','Tech stack needed'],['budget','Budget (SCR)','number'],['stage','Stage',STAGES],['owner','Assigned to',USERS],['scope','Scope notes','text']],
  clients:[['name','Client name'],['contact','Email or phone'],['notes','Notes','text']],
- projects:[['name','Project name'],['clientId','Client','client'],['stack','Tech stack'],['host','Hosting',HOSTS],['url','Live URL'],['repo','GitHub repo URL'],['due','Milestone deadline','date'],['status','Status',PS],['owner','Owner',USERS]],
- maint:[['title','Task'],['clientId','Client','client'],['type','Type',MT],['due','Due date','date'],['every','Repeats every (days)','number'],['owner','Owner',USERS],['notes','Notes','text']]
+ projects:[['name','Project name'],['clientId','Client','client'],['stack','Tech stack'],['host','Hosting',HOSTS],['url','Live URL'],['repo','GitHub repo URL'],['due','Milestone deadline','date'],['status','Status',PS],['owner','Assigned to',USERS]],
+ maint:[['title','Task'],['clientId','Client','client'],['type','Type',MT],['due','Due date','date'],['every','Repeats every (days)','number'],['owner','Assigned to',USERS],['notes','Notes','text']]
 };
 const NOUN={leads:'lead',clients:'client',projects:'project',maint:'maintenance task'};
 const DEF={leads:{stage:STAGES[0]},projects:{status:'Planning'},maint:{type:MT[0]}};
@@ -251,18 +254,18 @@ const V={
  pipeline(){
   const L=mineF(db.leads);
   if(!db.leads.length)return hdr('Pipeline','leads')+none('leads','No leads yet. Add an inquiry, then drag it across the stages.');
-  return hdr('Pipeline','leads')+`<div class="board">${STAGES.map((s,i)=>{const a=L.filter(l=>l.stage===s);return`<div class="col" data-stage="${i}"><h3>${s}<span>${a.length}</span></h3>${a.map(l=>`<div class="lead" draggable="true" data-drag="${l.id}" data-open="leads:${l.id}"><b>${esc(l.name)}</b><div class="mut">${esc(l.company)}</div><div class="meta"><span>${l.budget?'SCR '+Number(l.budget).toLocaleString():''}</span><span class="tag">${esc(l.owner)}</span></div></div>`).join('')}</div>`}).join('')}</div>`},
+  return hdr('Pipeline','leads')+`<div class="board">${STAGES.map((s,i)=>{const a=L.filter(l=>l.stage===s);return`<div class="col" data-stage="${i}"><h3>${s}<span>${a.length}</span></h3>${a.map(l=>`<div class="lead" draggable="true" data-drag="${l.id}" data-open="leads:${l.id}"><b>${esc(l.name)}</b><div class="mut">${esc(l.company)}</div><div class="meta"><span>${l.budget?'SCR '+Number(l.budget).toLocaleString():''}</span><span class="tag">Assigned: ${esc(l.owner)}</span></div></div>`).join('')}</div>`}).join('')}</div>`},
  clients(){
   if(!db.clients.length)return hdr('Clients','clients',0)+none('clients','No clients yet. Clients link to projects and maintenance tasks.');
   return hdr('Clients','clients',0)+`<div class="wrap"><table><tr><th>Client<th>Contact<th>Projects<th>Notes</tr>${db.clients.map(c=>`<tr class="row" data-open="clients:${c.id}"><td><b>${esc(c.name)}</b><td>${esc(c.contact)}<td>${db.projects.filter(p=>p.clientId===c.id).length}<td class="mut">${esc(c.notes)}</tr>`).join('')}</table></div>`},
  projects(){
   const P=mineF(db.projects);
   if(!db.projects.length)return hdr('Projects','projects')+none('projects','No projects yet. Track the stack, repo, hosting and deadline for each build.');
-  return hdr('Projects','projects')+`<div class="wrap"><table><tr><th>Project<th>Client<th>Stack<th>Hosting<th>Links<th>Deadline<th>Status<th>Owner</tr>${P.map(p=>`<tr class="row" data-open="projects:${p.id}"><td><b>${esc(p.name)}</b><td>${esc(cname(p.clientId))}<td>${esc(p.stack)}<td>${esc(p.host)}<td>${lnk(p.url,'live')}${lnk(p.repo,'repo')}<td>${esc(p.due)} ${p.due?chip({due:p.due,done:['Live','Done'].includes(p.status)}):''}<td>${esc(p.status)}<td>${esc(p.owner)}</tr>`).join('')}</table></div>`},
+  return hdr('Projects','projects')+`<div class="wrap"><table><tr><th>Project<th>Client<th>Stack<th>Hosting<th>Links<th>Deadline<th>Status<th>Assigned to</tr>${P.map(p=>`<tr class="row" data-open="projects:${p.id}"><td><b>${esc(p.name)}</b><td>${esc(cname(p.clientId))}<td>${esc(p.stack)}<td>${esc(p.host)}<td>${lnk(p.url,'live')}${lnk(p.repo,'repo')}<td>${esc(p.due)} ${p.due?chip({due:p.due,done:['Live','Done'].includes(p.status)}):''}<td>${esc(p.status)}<td>${esc(p.owner)}</tr>`).join('')}</table></div>`},
  maintenance(){
   const M=mineF(db.maint).slice().sort((a,b)=>(a.done?1:0)-(b.done?1:0)||(a.due||'9').localeCompare(b.due||'9'));
   if(!db.maint.length)return hdr('Maintenance','maint')+none('maint','No tasks yet. Add domain renewals, SSL checks, uptime monitors and backups.');
-  return hdr('Maintenance','maint')+`<div class="wrap"><table><tr><th>Task<th>Client<th>Type<th>Due<th>Status<th>Owner<th></tr>${M.map(m=>`<tr class="row" data-open="maint:${m.id}"><td><b>${esc(m.title)}</b><td>${esc(cname(m.clientId))}<td>${esc(m.type)}<td>${esc(m.due)} <span class="mut">${m.done?'':rel(m.due)}</span><td>${chip(m)}<td>${esc(m.owner)}<td>${m.done?'':`<button class="btn sm" data-done="${m.id}">Mark done</button>`}</tr>`).join('')}</table></div>`},
+  return hdr('Maintenance','maint')+`<div class="wrap"><table><tr><th>Task<th>Client<th>Type<th>Due<th>Status<th>Assigned to<th></tr>${M.map(m=>`<tr class="row" data-open="maint:${m.id}"><td><b>${esc(m.title)}</b><td>${esc(cname(m.clientId))}<td>${esc(m.type)}<td>${esc(m.due)} <span class="mut">${m.done?'':rel(m.due)}</span><td>${chip(m)}<td>${esc(m.owner)}<td>${m.done?'':`<button class="btn sm" data-done="${m.id}">Mark done</button>`}</tr>`).join('')}</table></div>`},
  activity(){
   const A=db.activity;
   if(!A.length)return hdr('Activity',0,0)+'<div class="card empty">No activity yet. Every change you or your associate make shows up here.</div>';
@@ -276,7 +279,7 @@ const nav=v=>{const od=db.maint.filter(m=>state(m)[0]==='bad').length;
    <span class="sp"></span>
    <label for="me">Working as</label>
    <select id="me">${USERS.map(u=>`<option${u===me?' selected':''}>${u}</option>`).join('')}</select>
-   <button class="btn pri" data-live-bella style="background:var(--gold);color:var(--ink);border:none;font-weight:600">🎙️ Live with Bella</button>
+   <button class="btn pri" data-live-bella style="background:var(--gold);color:var(--ink);border:none;font-weight:600">💬 Chat with Bella</button>
    <button class="btn" data-search>Search <kbd>Ctrl K</kbd></button>
    <button class="btn" data-export>Export backup</button>
  </nav>`};
@@ -290,94 +293,52 @@ function openSearch(){dlg.innerHTML='<input id="q" placeholder="Search leads, cl
 function hits(q){q=q.toLowerCase();const o=[];for(const k of['leads','clients','projects','maint'])for(const d of db[k])if(Object.values(d).join(' ').toLowerCase().includes(q))o.push([k,d]);return o.slice(0,8)}
 function showHits(q){const h=q?hits(q):[];$('#res').innerHTML=q&&!h.length?'<p class="mut">No matches.</p>':h.map(([k,d])=>`<div class="li" data-open="${k}:${d.id}"><span>${esc(title(k,d))}</span><span class="mut">${NOUN[k]}</span></div>`).join('')}
 
-/* Click-to-Speak Manual Voice Engine */
+/* Text-Based Chat Engine */
 const voiceDlg=$('#bellaVoiceDlg');
-let recognition=null;
-let isRecording=false;
 let chatHistory=[];
 
-if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.continuous = false;
-  recognition.interimResults = false;
+async function sendTextMessage(text) {
+  if (!text.trim()) return;
+  
+  chatHistory.push({ role: "user", content: text });
+  $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
+  $('#bellaStatus').textContent = "Bella is thinking...";
+  $('#chatInput').value = '';
 
-  recognition.onresult = async (event) => {
-    const spokenText = event.results[0][0].transcript;
-    stopRecordingState();
+  try {
+    const res = await fetch(`${WORKER_BASE_URL}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ history: chatHistory })
+    });
+    const data = await res.json();
     
-    chatHistory.push({ role: "user", content: spokenText });
+    chatHistory.push({ role: "assistant", content: data.reply });
     $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
-    $('#bellaStatus').textContent = "Bella is thinking...";
+    $('#bellaStatus').textContent = "Playing voice response...";
 
-    try {
-      const res = await fetch(`${WORKER_BASE_URL}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ history: chatHistory })
-      });
-      const data = await res.json();
-      
-      chatHistory.push({ role: "assistant", content: data.reply });
-      $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
-      $('#bellaStatus').textContent = "Playing response...";
-
-      const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
-      audio.play();
-      audio.onended = () => { 
-        $('#bellaStatus').textContent = "Click the button below when you're ready to speak again."; 
-      };
-    } catch (err) {
-      $('#bellaStatus').textContent = "Error communicating with Bella.";
-    }
-  };
-
-  recognition.onerror = (e) => {
-    console.log("Speech recognition error:", e.error);
-    stopRecordingState();
-  };
-
-  recognition.onend = () => {
-    if (isRecording) {
-      stopRecordingState();
-    }
-  };
-}
-
-function stopRecordingState() {
-  isRecording = false;
-  const micBtn = $('#micBtn');
-  if (micBtn) {
-    micBtn.textContent = "Click to Speak 🎙️";
-    micBtn.style.background = "var(--gold)";
-    micBtn.style.color = "var(--ink)";
+    const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
+    audio.play();
+    audio.onended = () => { 
+      $('#bellaStatus').textContent = "Type your next message below."; 
+    };
+  } catch (err) {
+    $('#bellaStatus').textContent = "Error communicating with Bella.";
+    console.error(err);
   }
 }
 
 document.addEventListener('click',e=>{
  const t=e.target;
  if(t===dlg){dlg.close();return}
- if(t===voiceDlg){voiceDlg.close();isRecording=false;if(recognition)recognition.stop();return}
- if(t.id==='closeVoice'){voiceDlg.close();isRecording=false;if(recognition)recognition.stop();return}
+ if(t===voiceDlg){voiceDlg.close();return}
+ if(t.id==='closeVoice'){voiceDlg.close();return}
  if(t.closest('a'))return;
  const g=s=>t.closest(s);let x;
  if(g('[data-close]'))dlg.close();
- else if(t.id==='micBtn'&&recognition){
-   if(!isRecording){
-     isRecording=true;
-     t.textContent = "Listening... Click when done 🔴";
-     t.style.background = "#b3412e";
-     t.style.color = "#fff";
-     $('#bellaStatus').textContent = "Listening to your voice...";
-     try{recognition.start();}catch(err){}
-   } else {
-     stopRecordingState();
-     try{recognition.stop();}catch(err){}
-     $('#bellaStatus').textContent = "Processing speech...";
-   }
- }
+ else if(t.id==='sendChatBtn'){sendTextMessage($('#chatInput').value);}
  else if(t.id==='clearMemory'){chatHistory=[];$('#bellaTranscript').innerHTML='<i>Memory cleared. Ready for a new topic...</i>';}
- else if(g('[data-live-bella]')){voiceDlg.showModal();if(!chatHistory.length)$('#bellaTranscript').innerHTML='<i>Ready. Click "Click to Speak" and talk to Bella...</i>';$('#bellaStatus').textContent='Click the button below to start speaking.'}
+ else if(g('[data-live-bella]')){voiceDlg.showModal();if(!chatHistory.length)$('#bellaTranscript').innerHTML='<i>Ready. Type a message to start chatting with Bella...</i>';$('#bellaStatus').textContent='Type a message below.';setTimeout(()=>$('#chatInput').focus(),100);}
  else if(x=g('[data-new]'))openForm(x.dataset.new);
  else if(x=g('[data-done]'))markDone(x.dataset.done);
  else if(g('[data-seed]'))seed();
@@ -397,6 +358,7 @@ document.addEventListener('input',e=>{if(e.target.id==='q')showHits(e.target.val
 document.addEventListener('keydown',e=>{
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch()}
  if(e.key==='Enter'&&e.target.id==='q'){const h=hits(e.target.value.trim())[0];if(h)openForm(h[0],h[1].id)}
+ if(e.key==='Enter'&&e.target.id==='chatInput'){e.preventDefault();sendTextMessage($('#chatInput').value);}
 });
 
 /* Drag leads between pipeline stages */
