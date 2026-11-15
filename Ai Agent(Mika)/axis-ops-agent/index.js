@@ -3,7 +3,7 @@ export default {
     const today = new Date().toISOString().split("T")[0];
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
 
-    const collections = ["maint", "projects", "leads", "tasks"];
+    const collections = ["leads", "projects", "maint", "clients", "tasks"];
     let allItems = [];
 
     if (specificPayload) {
@@ -12,28 +12,19 @@ export default {
       for (const col of collections) {
         try {
           const res = await fetch(`${baseUrl}/${col}`);
-          if (!res.ok) continue;
+          if (!res.ok) continue; 
           const data = await res.json();
           const docs = data.documents || [];
           
           docs.forEach((doc) => {
             const fields = doc.fields || {};
             let itemText = "";
-            const preferredKeys = ["name", "title", "client", "taskName", "description", "text", "scope", "notes"];
+            const preferredKeys = ["name", "title", "company", "client", "contact", "stack", "budget", "stage", "status", "assignedTo", "notes", "scope"];
             
             for (const preferred of preferredKeys) {
-              if (fields[preferred]?.stringValue) {
-                itemText += `${preferred}: ${fields[preferred].stringValue}, `;
-              }
-            }
-
-            if (!itemText) {
-              for (const key of Object.keys(fields)) {
-                const val = fields[key]?.stringValue || fields[key]?.integerValue;
-                if (val) {
-                  itemText = `${key}: ${val}`;
-                  break;
-                }
+              const val = fields[preferred]?.stringValue || fields[preferred]?.integerValue;
+              if (val) {
+                itemText += `${preferred}: ${val}, `;
               }
             }
 
@@ -42,7 +33,7 @@ export default {
             }
           });
         } catch (e) {
-          console.error(`Error fetching collection ${col}:`, e);
+          console.error(`Skipping collection ${col} due to error:`, e);
         }
       }
     }
@@ -57,16 +48,19 @@ export default {
     let prompt = "";
     if (specificPayload) {
       const itemData = specificPayload.item || specificPayload;
-      prompt = `You are the executive AI Operations Assistant for AXIS Digital Engineering. A new event or lead just came in: ${JSON.stringify(itemData)}. 
-Write a crisp, alert voice update for Boss announcing this new item immediately. 
-CRITICAL RULE: Look closely at the notes, scope, or description provided in the item data. If the notes or scope fields are empty, blank, or vague, DO NOT invent, fabricate, or guess any receipt issues, bugs, or problems. State clearly that no specific details or issues have been logged for this item yet.
-Keep it under 60 words, conversational, formatted strictly as spoken dialogue with no markdown, asterisks, or emojis, and always address the user as Boss.`;
-    } else if (allItems.length > 0) {
-      prompt = `You are the executive AI Operations Assistant for AXIS Digital Engineering. Write a crisp, energetic, natural-sounding morning voice briefing for Boss based on today's (${today}) operational items below. 
-CRITICAL RULE: Only report what is explicitly written in the notes or descriptions. Do not invent, fabricate, or guess issues if notes are missing or blank.
-Keep it under 120 words, conversational, and formatted strictly as spoken dialogue with no markdown, asterisks, or emojis. Mention clear human-readable names or descriptions rather than database IDs. Always address the user as Boss:\n\n${summaryContext}`;
+      prompt = `You are Bella, the executive AI Operations Assistant for AXIS Digital Engineering. A new event or update just came in: ${JSON.stringify(itemData)}. 
+Write a crisp, factual voice update for Boss announcing this exact update. 
+CRITICAL SPEAKING RULES: 
+1. NEVER speak database IDs, random tracking hashes, field keys, or technical codes aloud. 
+2. When mentioning budgets or numbers, state the numbers clearly without adding any currency labels or words like dollars.
+3. Keep it under 50 words, conversational, formatted strictly as spoken dialogue with no markdown, asterisks, or emojis. Always address the user as Boss.`;
     } else {
-      prompt = `You are the executive AI Operations Assistant for AXIS Digital Engineering. Write a short, friendly, professional morning voice update for Boss stating that all systems are nominal and there is no required work or active tasks on the docket for today (${today}). Keep it under 40 words, conversational, and formatted strictly as spoken dialogue with no markdown, asterisks, or emojis. Always address the user as Boss.`;
+      prompt = `You are Bella, the executive AI Operations Assistant for AXIS Digital Engineering. Write a crisp morning operational briefing for Boss based strictly on these actual current database items:\n\n${summaryContext}
+CRITICAL SPEAKING RULES: 
+1. NEVER speak database IDs, unique hash strings, or raw field labels aloud. 
+2. When mentioning budgets or numbers, state the numbers clearly without adding any currency labels or words like dollars.
+3. Only report items explicitly listed above. 
+Keep it under 100 words, conversational, formatted strictly as spoken dialogue with no markdown, asterisks, or emojis. Always address the user as Boss.`;
     }
 
     const groqResponse = await fetch(groqUrl, {
@@ -76,7 +70,7 @@ Keep it under 120 words, conversational, and formatted strictly as spoken dialog
         "Authorization": `Bearer ${env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
       }),
     });
@@ -93,12 +87,12 @@ Keep it under 120 words, conversational, and formatted strictly as spoken dialog
     formData.append(
       "file",
       new Blob([audioBuffer], { type: "audio/mpeg" }),
-      `axis-briefing-${today}.mp3`
+      `axis-update-${today}.mp3`
     );
     formData.append(
       "payload_json",
       JSON.stringify({
-        content: `🎧 **AXIS Executive Briefing (${today})**\n> ${spokenText}`,
+        content: `🎧 **AXIS Ops Update (${today})**\n> ${spokenText}`,
       })
     );
 
