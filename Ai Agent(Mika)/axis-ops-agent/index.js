@@ -59,7 +59,7 @@ export default {
       const itemData = specificPayload.item || specificPayload;
       prompt = `You are the executive AI Operations Assistant for AXIS Digital Engineering. A new event or lead just came in: ${JSON.stringify(itemData)}. 
 Write a crisp, alert voice update for Boss announcing this new item immediately. 
-CRITICAL RULE: Look closely at the notes, scope, or description provided in the item data. If the notes or scope fields are empty, blank, or vague (such as missing a receipt issue or problem description), DO NOT invent, fabricate, or guess any receipt issues, bugs, or problems. State clearly that no specific details or issues have been logged for this item yet.
+CRITICAL RULE: Look closely at the notes, scope, or description provided in the item data. If the notes or scope fields are empty, blank, or vague, DO NOT invent, fabricate, or guess any receipt issues, bugs, or problems. State clearly that no specific details or issues have been logged for this item yet.
 Keep it under 60 words, conversational, formatted strictly as spoken dialogue with no markdown, asterisks, or emojis, and always address the user as Boss.`;
     } else if (allItems.length > 0) {
       prompt = `You are the executive AI Operations Assistant for AXIS Digital Engineering. Write a crisp, energetic, natural-sounding morning voice briefing for Boss based on today's (${today}) operational items below. 
@@ -150,58 +150,6 @@ Keep it under 120 words, conversational, and formatted strictly as spoken dialog
 
     if (request.method === "OPTIONS") {
       return new Response(null, { headers: corsHeaders });
-    }
-
-    // Live conversational endpoint with multi-turn conversation memory and robust error handling
-    if (url.pathname === "/chat" && request.method === "POST") {
-      try {
-        const body = await request.json();
-        const incomingHistory = body.history || [{ role: "user", content: "Hello Bella" }];
-
-        const systemMessage = {
-          role: "system",
-          content: "You are Bella, the Executive AI Operations Assistant for AXIS Digital Engineering, speaking directly with Boss. Maintain conversation context from the chat history. Respond conversationally and concisely (under 50 words). Format strictly as spoken dialogue with no markdown, asterisks, or emojis."
-        };
-
-        const messagesPayload = [systemMessage, ...incomingHistory];
-
-        const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${env.GROQ_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "openai/gpt-oss-20b",
-            messages: messagesPayload,
-          }),
-        });
-
-        const groqJson = await groqRes.json();
-        if (!groqRes.ok) {
-          throw new Error(`Groq API error: ${JSON.stringify(groqJson)}`);
-        }
-        const replyText = groqJson.choices?.[0]?.message?.content || "I am here, Boss.";
-
-        let base64Audio = "";
-        try {
-          const audioBuf = await this.generateAudio(env, replyText);
-          base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuf)));
-        } catch (ttsErr) {
-          console.error("ElevenLabs TTS failed, returning text only:", ttsErr);
-        }
-
-        return new Response(JSON.stringify({ reply: replyText, audioBase64: base64Audio }), {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-      } catch (err) {
-        console.error("Worker /chat exception:", err.message);
-        return new Response(JSON.stringify({ error: err.message }), {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders }
-        });
-      }
     }
 
     if (url.pathname === "/trigger") {

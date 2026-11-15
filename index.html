@@ -88,23 +88,6 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 </head>
 <body><div id="splash"><canvas></canvas><b class="sw">AXIS</b></div><div id="app"><p class="empty">Loading…</p></div><dialog id="dlg"></dialog>
 
-<!-- Live Chat Modal with Typing Interface -->
-<dialog id="bellaVoiceDlg" style="background:var(--nav);color:#fff;border:1px solid var(--gold);border-radius:16px;padding:24px;width:min(480px,92vw);">
-  <h2 style="color:var(--gold);margin-top:0;font-family:Fraunces,serif;">💬 Chat with Bella</h2>
-  <p id="bellaStatus" style="color:#b9c6df;font-size:13px;margin-bottom:12px;">Type a message below to chat with your AI Operations Assistant.</p>
-  <div id="bellaTranscript" style="background:#13233f;border:1px solid #2a4272;border-radius:8px;padding:12px;min-height:120px;max-height:220px;overflow-y:auto;margin-bottom:16px;font-size:13px;color:#dbe4f5;line-height:1.4;">
-    <i>Ready. Type your message below...</i>
-  </div>
-  <div style="display:flex;gap:8px;margin-bottom:10px;">
-    <input type="text" id="chatInput" placeholder="Ask Bella about leads, projects, tasks..." style="flex:1;background:#1a2d52;color:#fff;border:1px solid #2a4272;border-radius:8px;padding:9px 12px;font:inherit;">
-    <button id="sendChatBtn" class="btn pri" style="background:var(--gold);color:var(--ink);font-weight:600;padding:9px 16px;">Send ➔</button>
-  </div>
-  <div style="display:flex;gap:10px;justify-content:flex-end;">
-    <button class="btn" id="clearMemory" style="background:#1a2d52;color:#dbe4f5;border-color:#2a4272;">Clear Memory</button>
-    <button class="btn" id="closeVoice" style="background:#1a2d52;color:#fff;border-color:#2a4272;">Close</button>
-  </div>
-</dialog>
-
 <!-- Firebase SDK Imports via CDN -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
@@ -279,7 +262,6 @@ const nav=v=>{const od=db.maint.filter(m=>state(m)[0]==='bad').length;
    <span class="sp"></span>
    <label for="me">Working as</label>
    <select id="me">${USERS.map(u=>`<option${u===me?' selected':''}>${u}</option>`).join('')}</select>
-   <button class="btn pri" data-live-bella style="background:var(--gold);color:var(--ink);border:none;font-weight:600">💬 Chat with Bella</button>
    <button class="btn" data-search>Search <kbd>Ctrl K</kbd></button>
    <button class="btn" data-export>Export backup</button>
  </nav>`};
@@ -293,55 +275,12 @@ function openSearch(){dlg.innerHTML='<input id="q" placeholder="Search leads, cl
 function hits(q){q=q.toLowerCase();const o=[];for(const k of['leads','clients','projects','maint'])for(const d of db[k])if(Object.values(d).join(' ').toLowerCase().includes(q))o.push([k,d]);return o.slice(0,8)}
 function showHits(q){const h=q?hits(q):[];$('#res').innerHTML=q&&!h.length?'<p class="mut">No matches.</p>':h.map(([k,d])=>`<div class="li" data-open="${k}:${d.id}"><span>${esc(title(k,d))}</span><span class="mut">${NOUN[k]}</span></div>`).join('')}
 
-/* Text-Based Chat Engine with Guarded Audio Fallback */
-const voiceDlg=$('#bellaVoiceDlg');
-let chatHistory=[];
-
-async function sendTextMessage(text) {
-  if (!text.trim()) return;
-  
-  chatHistory.push({ role: "user", content: text });
-  $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
-  $('#bellaStatus').textContent = "Bella is thinking...";
-  $('#chatInput').value = '';
-
-  try {
-    const res = await fetch(`${WORKER_BASE_URL}/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ history: chatHistory })
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    
-    chatHistory.push({ role: "assistant", content: data.reply });
-    $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
-
-    if (data.audioBase64) {
-      $('#bellaStatus').textContent = "Playing voice response...";
-      const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
-      audio.play().catch(e => console.log("Audio play blocked by browser policy:", e));
-      audio.onended = () => { $('#bellaStatus').textContent = "Type your next message below."; };
-    } else {
-      $('#bellaStatus').textContent = "Type your next message below. (Audio unavailable)";
-    }
-  } catch (err) {
-    $('#bellaStatus').textContent = "Error communicating with Bella.";
-    console.error(err);
-  }
-}
-
 document.addEventListener('click',e=>{
  const t=e.target;
  if(t===dlg){dlg.close();return}
- if(t===voiceDlg){voiceDlg.close();return}
- if(t.id==='closeVoice'){voiceDlg.close();return}
  if(t.closest('a'))return;
  const g=s=>t.closest(s);let x;
  if(g('[data-close]'))dlg.close();
- else if(t.id==='sendChatBtn'){sendTextMessage($('#chatInput').value);}
- else if(t.id==='clearMemory'){chatHistory=[];$('#bellaTranscript').innerHTML='<i>Memory cleared. Ready for a new topic...</i>';}
- else if(g('[data-live-bella]')){voiceDlg.showModal();if(!chatHistory.length)$('#bellaTranscript').innerHTML='<i>Ready. Type a message to start chatting with Bella...</i>';$('#bellaStatus').textContent='Type a message below.';setTimeout(()=>$('#chatInput').focus(),100);}
  else if(x=g('[data-new]'))openForm(x.dataset.new);
  else if(x=g('[data-done]'))markDone(x.dataset.done);
  else if(g('[data-seed]'))seed();
@@ -361,7 +300,6 @@ document.addEventListener('input',e=>{if(e.target.id==='q')showHits(e.target.val
 document.addEventListener('keydown',e=>{
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch()}
  if(e.key==='Enter'&&e.target.id==='q'){const h=hits(e.target.value.trim())[0];if(h)openForm(h[0],h[1].id)}
- if(e.key==='Enter'&&e.target.id==='chatInput'){e.preventDefault();sendTextMessage($('#chatInput').value);}
 });
 
 /* Drag leads between pipeline stages */
