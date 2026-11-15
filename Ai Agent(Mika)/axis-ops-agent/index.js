@@ -152,7 +152,7 @@ Keep it under 120 words, conversational, and formatted strictly as spoken dialog
       return new Response(null, { headers: corsHeaders });
     }
 
-    // Live conversational endpoint with multi-turn conversation memory
+    // Live conversational endpoint with multi-turn conversation memory and robust error handling
     if (url.pathname === "/chat" && request.method === "POST") {
       try {
         const body = await request.json();
@@ -178,16 +178,25 @@ Keep it under 120 words, conversational, and formatted strictly as spoken dialog
         });
 
         const groqJson = await groqRes.json();
+        if (!groqRes.ok) {
+          throw new Error(`Groq API error: ${JSON.stringify(groqJson)}`);
+        }
         const replyText = groqJson.choices?.[0]?.message?.content || "I am here, Boss.";
 
-        const audioBuf = await this.generateAudio(env, replyText);
-        const base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuf)));
+        let base64Audio = "";
+        try {
+          const audioBuf = await this.generateAudio(env, replyText);
+          base64Audio = btoa(String.fromCharCode(...new Uint8Array(audioBuf)));
+        } catch (ttsErr) {
+          console.error("ElevenLabs TTS failed, returning text only:", ttsErr);
+        }
 
         return new Response(JSON.stringify({ reply: replyText, audioBase64: base64Audio }), {
           status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders }
         });
       } catch (err) {
+        console.error("Worker /chat exception:", err.message);
         return new Response(JSON.stringify({ error: err.message }), {
           status: 500,
           headers: { "Content-Type": "application/json", ...corsHeaders }

@@ -293,7 +293,7 @@ function openSearch(){dlg.innerHTML='<input id="q" placeholder="Search leads, cl
 function hits(q){q=q.toLowerCase();const o=[];for(const k of['leads','clients','projects','maint'])for(const d of db[k])if(Object.values(d).join(' ').toLowerCase().includes(q))o.push([k,d]);return o.slice(0,8)}
 function showHits(q){const h=q?hits(q):[];$('#res').innerHTML=q&&!h.length?'<p class="mut">No matches.</p>':h.map(([k,d])=>`<div class="li" data-open="${k}:${d.id}"><span>${esc(title(k,d))}</span><span class="mut">${NOUN[k]}</span></div>`).join('')}
 
-/* Text-Based Chat Engine */
+/* Text-Based Chat Engine with Guarded Audio Fallback */
 const voiceDlg=$('#bellaVoiceDlg');
 let chatHistory=[];
 
@@ -312,16 +312,19 @@ async function sendTextMessage(text) {
       body: JSON.stringify({ history: chatHistory })
     });
     const data = await res.json();
+    if (data.error) throw new Error(data.error);
     
     chatHistory.push({ role: "assistant", content: data.reply });
     $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
-    $('#bellaStatus').textContent = "Playing voice response...";
 
-    const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
-    audio.play();
-    audio.onended = () => { 
-      $('#bellaStatus').textContent = "Type your next message below."; 
-    };
+    if (data.audioBase64) {
+      $('#bellaStatus').textContent = "Playing voice response...";
+      const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
+      audio.play().catch(e => console.log("Audio play blocked by browser policy:", e));
+      audio.onended = () => { $('#bellaStatus').textContent = "Type your next message below."; };
+    } else {
+      $('#bellaStatus').textContent = "Type your next message below. (Audio unavailable)";
+    }
   } catch (err) {
     $('#bellaStatus').textContent = "Error communicating with Bella.";
     console.error(err);
