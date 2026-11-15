@@ -72,16 +72,15 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 .acts span{flex:1}
 .first .grid>.card{animation:rise .55s var(--e) both}
 .first .grid>.card:nth-child(2){animation-delay:.08s}.first .grid>.card:nth-child(3){animation-delay:.16s}.first .grid>.card:nth-child(4){animation-delay:.24s}
-#splash{position:fixed;inset:0;z-index:100;background:#0f1b2d;transition:opacity .6s ease;cursor:pointer}
+#splash{position:fixed;inset:0;z-index:100;background:#0f1b2d;display:flex;align-items:center;justify-content:center;transition:opacity .6s ease;cursor:pointer}
 #splash.out{opacity:0;pointer-events:none}
-#splash canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .6s var(--e)}
-#splash canvas.on{opacity:1}
-.sw{display:none;position:absolute;inset:0;align-items:center;justify-content:center;font:600 min(22vw,160px) Fraunces,Georgia,serif;letter-spacing:.06em;color:#5f7499}
-.nogpu .sw{display:flex}
+#splash canvas{position:absolute;inset:0;width:100%;height:100%}
+.sw{position:relative;z-index:2;font:600 min(22vw,160px) Fraunces,Georgia,serif;letter-spacing:.06em;color:#c9a24b;animation:pulseText 1.5s ease-in-out infinite alternate}
 @keyframes fade{from{opacity:0}}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}}
 @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}}
 @keyframes pulse{0%{box-shadow:0 0 0 0 #b3412e66}70%,100%{box-shadow:0 0 0 7px #b3412e00}}
+@keyframes pulseText{from{opacity:.7;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
 @media(max-width:760px){#app{grid-template-columns:1fr}nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;gap:4px}.brand{width:100%;padding-bottom:10px}.links{display:flex;flex-wrap:wrap}.ind{display:none}.links a.on{background:#1f3560}nav .sp,nav label{display:none}main{padding:18px}}
 @media(prefers-reduced-motion:reduce){*,::before,::backdrop{animation:none!important;transition:none!important}}
 </style>
@@ -405,35 +404,37 @@ async function initApp(){
   splashAnim();
 }
 
-/* Splash WebGPU ShapeWaves Component Integration */
-async function splash(){
+/* Built-in Canvas Splash Wave Animation */
+function splash(){
   const el = $('#splash'), cv = $('#splash canvas');
   if (!el || !cv) return;
+  const ctx = cv.getContext('2d');
+  let w = cv.width = cv.offsetWidth;
+  let h = cv.height = cv.offsetHeight;
+  
+  let step = 0;
+  function draw(){
+    step += 0.03;
+    ctx.fillStyle = '#0f1b2d';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#c9a24b33';
+    ctx.lineWidth = 2;
+    for(let i = 0; i < h; i += 20){
+      ctx.beginPath();
+      for(let x = 0; x < w; x += 10){
+        let y = i + Math.sin(x * 0.01 + step + i * 0.1) * 12;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    if(!el.classList.contains('out')) requestAnimationFrame(draw);
+  }
+  draw();
 
-  try {
-    const ShapeWavesComponent = await import('./ShapeWaves.jsx').catch(() => null);
-    // Alternatively, using direct vgpu initialization matching ShapeWaves structure:
-    const gpu = await init({ powerPreference: 'low-power' });
-    if (!gpu) throw new Error('WebGPU unavailable');
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = Math.max(1, Math.round(cv.clientWidth * dpr));
-    const height = Math.max(1, Math.round(cv.clientHeight * dpr));
-    cv.width = width;
-    cv.height = height;
-
-    const outputFormat = navigator.gpu.getPreferredCanvasFormat();
-    const output = surface(gpu, cv, { dpr, size: [width, height], autoResize: false, format: outputFormat });
-
-    // Intro wave and rendering sequence
-    setTimeout(() => {
-      el.classList.add('out');
-      setTimeout(() => el.remove(), 600);
-    }, 1200);
-  } catch (err) {
+  setTimeout(() => {
     el.classList.add('out');
     setTimeout(() => el.remove(), 600);
-  }
+  }, 1400);
 }
 
 function splashAnim(){
