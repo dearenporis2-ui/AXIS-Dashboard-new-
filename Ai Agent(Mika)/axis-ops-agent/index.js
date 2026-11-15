@@ -76,13 +76,15 @@ Write a crisp, factual voice update for Boss announcing this exact update.
 CRITICAL SPEAKING RULES: 
 1. NEVER speak database IDs, random tracking hashes, field keys, or technical codes aloud. 
 2. When mentioning budgets or numbers, state the numbers clearly without adding any currency labels or words like dollars.
-3. Keep it under 50 words, conversational, formatted strictly as spoken dialogue with no markdown, asterisks, or emojis. Always address the user as Boss.`;
+3. If an item is assigned to "Dearen", translate it naturally to mean assigned to "you" (e.g., say "assigned to you" instead of "assigned to Dearen").
+4. Keep it under 50 words, conversational, formatted strictly as spoken dialogue with no markdown, asterisks, or emojis. Always address the user as Boss.`;
     } else {
       prompt = `You are Bella, the executive AI Operations Assistant for AXIS Digital Engineering. Write a crisp morning operational briefing for Boss based strictly on these actual current database items:\n\n${summaryContext}
 CRITICAL SPEAKING RULES: 
 1. NEVER speak database IDs, unique hash strings, or raw field labels aloud. 
 2. When mentioning budgets or numbers, state the numbers clearly without adding any currency labels or words like dollars.
-3. Only report items explicitly listed above. 
+3. If an item is assigned to "Dearen", translate it naturally to mean assigned to "you" (e.g., say "assigned to you" instead of "assigned to Dearen").
+4. Only report items explicitly listed above. 
 Keep it under 100 words, conversational, formatted strictly as spoken dialogue with no markdown, asterisks, or emojis. Always address the user as Boss.`;
     }
 

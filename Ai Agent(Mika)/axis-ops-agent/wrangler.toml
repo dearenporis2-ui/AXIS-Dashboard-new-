@@ -4,3 +4,10 @@ compatibility_date = "2026-03-01"
 
 [triggers]
 crons = ["0 9 * * *"] # Automatically triggers Bella every day at 9:00 AM UTC
+
+[vars]
+FIREBASE_PROJECT_ID = "axis-ops-693d3"
+FIREBASE_WEB_API_KEY = "AIzaSyCLwX25jpMaQeMv39cz3OMFFGRDIJmlzMc"
+TRIGGER_SECRET = "axis_sec_99281"
+WORKER_EMAIL = "worker@axisagency.co"
+WORKER_PASSWORD = "AxisWorker2026"
