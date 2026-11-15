@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AXIS Ops</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#edf0f5;--ink:#0f1b2d;--mut:#5d6b82;--line:#dbe1eb;--nav:#13233f;--gold:#c9a24b;--ok:#2f7d5b;--soon:#9a6208;--bad:#b3412e;--e:cubic-bezier(.3,.8,.3,1)}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 "Work Sans",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+#app{display:grid;grid-template-columns:224px 1fr;min-height:100vh}
+nav{background:var(--nav);color:#b9c6df;padding:22px 12px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column}
+.brand{font:600 24px/1 Fraunces,Georgia,serif;color:#fff;letter-spacing:.04em;padding:0 10px 22px}
+.brand i{font:500 13px "Work Sans",system-ui,sans-serif;color:var(--gold);letter-spacing:.02em;margin-left:7px}
+.links{position:relative}
+.ind{position:absolute;left:0;right:0;top:0;height:36px;background:#1f3560;border-radius:8px;box-shadow:inset 3px 0 var(--gold);transition:transform .3s var(--e)}
+.links a{position:relative;height:36px;margin-bottom:2px;padding:0 12px;border-radius:8px;color:inherit;text-decoration:none;display:flex;justify-content:space-between;align-items:center;transition:color .2s,background .2s}
+.links a:hover{color:#fff;background:#ffffff0d}
+.links a.on{color:#fff;background:none}
+nav .sp{flex:1}
+nav label{font-size:12px;margin:8px 0 2px 2px}
+nav select,nav .btn{width:100%;background:#1a2d52;color:#dbe4f5;border:1px solid #2a4272;border-radius:8px;padding:8px;margin-top:6px;text-align:left}
+nav .btn:hover{background:#22386a;border-color:#3a5590}
+kbd{float:right;font:11px system-ui;color:#93a3c0}
+main{padding:28px 32px 48px;min-width:0}
+main.enter{animation:fade .22s ease-out}
+.top{display:flex;gap:14px;align-items:center;margin-bottom:20px;flex-wrap:wrap}
+h1{font:600 28px/1.15 Fraunces,Georgia,serif;letter-spacing:-.01em;margin:0;flex:1}
+h1 small{display:block;font:400 13px "Work Sans",system-ui,sans-serif;color:var(--mut);margin-top:5px;letter-spacing:0}
+h2{margin:0 0 6px;font:600 20px Fraunces,Georgia,serif}
+.chk{display:flex;gap:6px;align-items:center;color:var(--mut);cursor:pointer}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:7px 13px;cursor:pointer;font:inherit;transition:background .15s,border-color .15s,box-shadow .15s,transform .1s}
+.btn:hover{border-color:#b9c4d6;background:#f7f9fc}
+.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--nav);color:#fff;border-color:var(--nav)}
+.btn.pri:hover{background:#1c3158;box-shadow:0 4px 14px #13233f40}
+.btn.bad{color:var(--bad);border-color:#e8c4bc}
+.btn.sm{padding:3px 10px;font-size:12px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card h3{font:600 17px Fraunces,Georgia,serif;margin:0 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px}
+.li{display:flex;justify-content:space-between;gap:10px;padding:8px;margin:0 -8px;border-radius:8px;cursor:pointer;transition:background .15s}
+.li:hover{background:#f1f4f9}
+.mut{color:var(--mut)}
+.empty{color:var(--mut);padding:36px;text-align:center}
+.wrap{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{color:var(--mut);font-weight:600;font-size:12px;background:#f7f9fc}
+.row{cursor:pointer;transition:background .15s,box-shadow .15s}
+.row:hover{background:#f6f8fc;box-shadow:inset 3px 0 var(--gold)}
+.tag{padding:2px 9px;border-radius:99px;font-size:12px;background:#e8edf5;white-space:nowrap}
+.s-ok{background:#dcefe6;color:var(--ok)}.s-soon{background:#f8ead0;color:var(--soon)}.s-bad{background:#f5dcd6;color:var(--bad)}
+.s-bad::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--bad);margin-right:6px;vertical-align:1px;animation:pulse 1.9s ease-out infinite}
+nav .s-bad::before{display:none}
+.board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:12px;overflow-x:auto;align-items:start;padding-bottom:6px}
+.col{--sc:#7f93b5;background:#e3e8f0;border-radius:12px;border-top:3px solid var(--sc);padding:10px;min-height:180px;transition:background .15s,outline-color .15s}
+.col[data-stage="1"]{--sc:#5b78a8}.col[data-stage="2"]{--sc:#2f5aa0}.col[data-stage="3"]{--sc:var(--gold)}.col[data-stage="4"]{--sc:#aab3c2}
+.col.over{background:#f6efd9;outline:2px dashed var(--gold)}
+.col h3{display:flex;justify-content:space-between;font:600 13px "Work Sans",system-ui,sans-serif;color:var(--mut);margin:2px 4px 10px}
+.lead{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px;cursor:grab;transition:transform .18s var(--e),box-shadow .18s,border-color .18s,opacity .15s}
+.lead:hover{transform:translateY(-2px);box-shadow:0 8px 18px #13233f1f;border-color:var(--gold)}
+.lead.dragging{opacity:.45;transform:rotate(-1.5deg)}
+.meta{display:flex;justify-content:space-between;margin-top:7px;font-size:12px;font-variant-numeric:tabular-nums}
+dialog{border:0;border-radius:14px;padding:22px;width:min(480px,94vw);box-shadow:0 24px 70px #0006;color:var(--ink)}
+dialog[open]{animation:pop .22s var(--e)}
+dialog[open]::backdrop{animation:fade .22s ease-out}
+dialog::backdrop{background:#0b1a3388}
+dialog label{display:block;margin-top:10px;font-size:12px;color:var(--mut)}
+dialog input,dialog select,dialog textarea{display:block;width:100%;margin-top:3px;padding:8px 10px;font:inherit;color:var(--ink);border:1px solid var(--line);border-radius:8px;transition:border-color .15s,box-shadow .15s}
+dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-color:var(--gold);box-shadow:0 0 0 3px #c9a24b33}
+.acts{display:flex;gap:8px;margin-top:20px}
+.acts span{flex:1}
+.first .grid>.card{animation:rise .55s var(--e) both}
+.first .grid>.card:nth-child(2){animation-delay:.08s}.first .grid>.card:nth-child(3){animation-delay:.16s}.first .grid>.card:nth-child(4){animation-delay:.24s}
+#splash{position:fixed;inset:0;z-index:100;background:#0f1b2d;transition:opacity .6s ease;cursor:pointer}
+#splash.out{opacity:0;pointer-events:none}
+#splash canvas{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity .6s var(--e)}
+#splash canvas.on{opacity:1}
+.sw{display:none;position:absolute;inset:0;align-items:center;justify-content:center;font:600 min(22vw,160px) Fraunces,Georgia,serif;letter-spacing:.06em;color:#5f7499}
+.nogpu .sw{display:flex}
+@keyframes fade{from{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 #b3412e66}70%,100%{box-shadow:0 0 0 7px #b3412e00}}
+@media(max-width:760px){#app{grid-template-columns:1fr}nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;gap:4px}.brand{width:100%;padding-bottom:10px}.links{display:flex;flex-wrap:wrap}.ind{display:none}.links a.on{background:#1f3560}nav .sp,nav label{display:none}main{padding:18px}}
+@media(prefers-reduced-motion:reduce){*,::before,::backdrop{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body><div id="splash"><canvas></canvas><b class="sw">AXIS</b></div><div id="app"><p class="empty">Loading…</p></div><dialog id="dlg"></dialog>
+
+<!-- Live Voice Modal with "Hey Bella" Hands-Free Wake Word Engine -->
+<dialog id="bellaVoiceDlg" style="background:var(--nav);color:#fff;border:1px solid var(--gold);border-radius:16px;padding:24px;width:min(440px,92vw);">
+  <h2 style="color:var(--gold);margin-top:0;font-family:Fraunces,serif;">🎙️ Live with Bella</h2>
+  <p id="bellaStatus" style="color:#b9c6df;font-size:13px;margin-bottom:12px;">Click below to enable hands-free mode, then say "Hey Bella" to talk.</p>
+  <div id="bellaTranscript" style="background:#13233f;border:1px solid #2a4272;border-radius:8px;padding:12px;min-height:90px;max-height:160px;overflow-y:auto;margin-bottom:16px;font-size:13px;color:#dbe4f5;line-height:1.4;">
+    <i>Awaiting hands-free activation...</i>
+  </div>
+  <div style="display:flex;gap:10px;">
+    <button id="micBtn" class="btn pri" style="flex:1;background:var(--gold);color:var(--ink);font-weight:600;padding:10px;">Toggle Hands-Free Mode 🎙️</button>
+    <button class="btn" id="clearMemory" style="background:#1a2d52;color:#dbe4f5;border-color:#2a4272;">Clear Memory</button>
+    <button class="btn" id="closeVoice" style="background:#1a2d52;color:#fff;border-color:#2a4272;">Close</button>
+  </div>
+</dialog>
+
+<!-- Firebase SDK Imports via CDN -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCLwX25jpMaQeMv39cz3OMFFGRDIJmlzMc",
+  authDomain: "axis-ops-693d3.firebaseapp.com",
+  projectId: "axis-ops-693d3",
+  storageBucket: "axis-ops-693d3.firebasestorage.app",
+  messagingSenderId: "229428857501",
+  appId: "1:229428857501:web:dabcc9ff9c85d3972c6274",
+  measurementId: "G-NQNHR0H90N"
+};
+
+const app = initializeApp(firebaseConfig);
+const firestore = getFirestore(app);
+
+const WORKER_BASE_URL = "https://axis-ops-agent.axis-ops.workers.dev";
+
+const STAGES=['Inquiry / Scope','Proposal / Quoted','Active Build','Completed / Handed Over','Archived'];
+const USERS=['Ronny','Associate'],HOSTS=['Netlify','Firebase','Vercel','Supabase','Cloudflare','GitHub Pages'];
+const MT=['Domain (Namecheap)','SSL certificate','Hosting / database health','Uptime (UptimeRobot)','Backup'];
+const PS=['Planning','In progress','Live','Done'];
+const F={
+ leads:[['name','Lead / project name'],['company','Company'],['contact','Email or phone'],['stack','Tech stack needed'],['budget','Budget (SCR)','number'],['stage','Stage',STAGES],['owner','Assigned to',USERS],['scope','Scope notes','text']],
+ clients:[['name','Client name'],['contact','Email or phone'],['notes','Notes','text']],
+ projects:[['name','Project name'],['clientId','Client','client'],['stack','Tech stack'],['host','Hosting',HOSTS],['url','Live URL'],['repo','GitHub repo URL'],['due','Milestone deadline','date'],['status','Status',PS],['owner','Owner',USERS]],
+ maint:[['title','Task'],['clientId','Client','client'],['type','Type',MT],['due','Due date','date'],['every','Repeats every (days)','number'],['owner','Owner',USERS],['notes','Notes','text']]
+};
+const NOUN={leads:'lead',clients:'client',projects:'project',maint:'maintenance task'};
+const DEF={leads:{stage:STAGES[0]},projects:{status:'Planning'},maint:{type:MT[0]}};
+const EMPTY=()=>({leads:[],clients:[],projects:[],maint:[],activity:[]});
+let db=EMPTY(),me=localStorage.getItem('ax-me')||USERS[0],mine=false,actN=30,cur=null;
+
+/* Firestore Cloud Adapter */
+const FirestoreStore={
+ async load(){
+  const result = EMPTY();
+  for(const col of ['leads','clients','projects','maint','activity']){
+    const snapshot = await getDocs(collection(firestore, col));
+    snapshot.forEach(docSnap => {
+      result[col].push({ id: docSnap.id, ...docSnap.data() });
+    });
+  }
+  result.activity.sort((a,b)=>(b.at||0)-(a.at||0));
+  return result;
+ },
+ async put(c,d){
+  await setDoc(doc(firestore, c, String(d.id)), d);
+ },
+ async del(c,id){
+  await deleteDoc(doc(firestore, c, String(id)));
+ }
+};
+const store=FirestoreStore;
+
+const $=s=>document.querySelector(s),dlg=$('#dlg');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,10);
+const ymd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const todayS=()=>ymd(new Date());
+const addDays=(s,n)=>{const d=new Date(s+'T00:00');d.setDate(d.getDate()+n);return ymd(d)};
+const diff=s=>Math.round((new Date(s+'T00:00')-new Date(todayS()+'T00:00'))/864e5);
+const state=m=>{if(m.done)return['ok','Done'];if(!m.due)return['ok','No date'];const n=diff(m.due);return n<0?['bad','Overdue']:n<=30?['soon','Due soon']:['ok','Active']};
+const chip=m=>{const[k,l]=state(m);return`<span class="tag s-${k}">${l}</span>`};
+const rel=s=>{if(!s)return'';const n=diff(s);return n===0?'today':n<0?-n+'d ago':'in '+n+'d'};
+const cname=id=>(db.clients.find(c=>c.id===id)||{}).name||'—';
+const mineF=a=>mine?a.filter(x=>x.owner===me):a;
+const lnk=(u,t)=>/^https?:\/\//i.test(u||'')?`<a href="${esc(u)}" target="_blank" rel="noopener">${t}</a> `:'';
+const title=(c,d)=>d[F[c][0][0]]||'';
+
+function log(text){const a={id:uid(),at:Date.now(),by:me,text};db.activity.unshift(a);store.put('activity',a)}
+
+async function save(c,d,isNew,msg){
+  if(isNew) db[c].push(d);
+  await store.put(c,d);
+  log(msg);
+  render();
+
+  if(isNew){
+    try {
+      await fetch(`${WORKER_BASE_URL}/trigger`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ collection: c, item: d })
+      });
+    } catch (err) {
+      console.error("Failed to alert AI Ops Associate:", err);
+    }
+  }
+}
+
+window.openForm=(c,id)=>{
+ cur={c,id};
+ const d=id?db[c].find(x=>x.id===id):{...DEF[c],owner:me};
+ const fields=F[c].map(([k,l,t],i)=>{const v=d[k]??'';let i2;
+  if(t==='text')i2=`<textarea name="${k}" rows="3">${esc(v)}</textarea>`;
+  else if(Array.isArray(t)||t==='client'){
+   const o=t==='client'?[['','None'],...db.clients.map(x=>[x.id,x.name])]:t.map(x=>[x,x]);
+   i2=`<select name="${k}">${o.map(([a,b])=>`<option value="${esc(a)}"${a==v?' selected':''}>${esc(b)}</option>`).join('')}</select>`}
+  else i2=`<input name="${k}" type="${t||'text'}" value="${esc(v)}"${i===0?' required':''}>`;
+  return`<label>${l}${i2}</label>`}).join('');
+ dlg.innerHTML=`<form id="ff"><h2>${id?'Edit':'New'} ${NOUN[c]}</h2>${fields}<div class="acts">${id?'<button type="button" class="btn bad" data-del>Delete</button>':''}<span></span><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Save ${NOUN[c]}</button></div></form>`;
+ if(!dlg.open)dlg.showModal();
+ $('#ff').onsubmit=e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));dlg.close();
+  if(id){Object.assign(d,v);save(c,d,0,`Updated ${NOUN[c]} “${title(c,d)}”`)}
+  else{Object.assign(d,v,{id:uid()});save(c,d,1,`Added ${NOUN[c]} “${title(c,d)}”`)}};
+};
+function remove(){
+ const{c,id}=cur,d=db[c].find(x=>x.id===id);
+ if(!confirm(`Delete ${NOUN[c]} “${title(c,d)}”?`))return;
+ db[c]=db[c].filter(x=>x.id!==id);store.del(c,id);dlg.close();log(`Deleted ${NOUN[c]} “${title(c,d)}”`);render();
+}
+window.markDone=id=>{
+ const m=db.maint.find(x=>x.id===id);
+ if(+m.every>0){const base=m.due&&diff(m.due)>0?m.due:todayS();m.due=addDays(base,+m.every);log(`Completed “${m.title}”, next due ${m.due}`)}
+ else{m.done=true;log(`Completed “${m.title}”`)}
+ store.put('maint',m);render();
+};
+function seed(){
+ const t=todayS(),c={id:uid(),name:'Sample Café',contact:'cafe@example.com'};
+ db.clients.push(c);
+ db.leads.push({id:uid(),name:'Booking site',company:'Sample Villa',contact:'+248 2 000 000',stack:'HTML, Firebase',budget:12000,stage:STAGES[0],owner:'Ronny',scope:'Booking form and gallery'},{id:uid(),name:'Menu redesign',company:'Sample Café',stage:STAGES[1],budget:6000,owner:'Associate'});
+ db.projects.push({id:uid(),name:'Café website',clientId:c.id,stack:'HTML, Firebase',host:'Netlify',url:'https://example.com',due:addDays(t,10),status:'In progress',owner:'Ronny'});
+ db.maint.push({id:uid(),title:'Renew samplecafe.sc',clientId:c.id,type:MT[0],due:addDays(t,-2),every:365,owner:'Ronny'},{id:uid(),title:'SSL check',clientId:c.id,type:MT[1],due:addDays(t,12),every:90,owner:'Associate'},{id:uid(),title:'Backup log',clientId:c.id,type:MT[4],due:addDays(t,60),every:30,owner:'Ronny'});
+ ['leads','clients','projects','maint'].forEach(k=>db[k].forEach(d=>store.put(k,d)));
+ log('Loaded sample data');render();
+}
+function exportJSON(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,1)],{type:'application/json'}));a.download='axis-ops-'+todayS()+'.json';a.click()}
+
+/* Views */
+const hdr=(t,c,mi=1)=>`<div class="top"><h1>${t}</h1>${mi?`<label class="chk"><input type="checkbox" id="mine"${mine?' checked':''}> Mine only</label>`:''}${c?`<button class="btn pri" data-new="${c}">New ${NOUN[c]}</button>`:''}</div>`;
+const none=(c,t)=>`<div class="card empty">${t}<br><br><button class="btn pri" data-new="${c}">Add ${NOUN[c]}</button></div>`;
+const greet=()=>{const h=new Date().getHours();return`Good ${h<12?'morning':h<18?'afternoon':'evening'}${me==='Ronny'?', Ronny':''}<small>${new Date().toLocaleDateString([],{weekday:'long',day:'numeric',month:'long'})}</small>`};
+const V={
+ dashboard(){
+  if(!['leads','clients','projects','maint'].some(k=>db[k].length))return hdr(greet(),0,0)+`<div class="card empty">Nothing tracked yet. Add your first lead or client, or fill the app with sample data to try it out.<br><br><button class="btn pri" data-new="leads">Add a lead</button> <button class="btn" data-seed>Load sample data</button></div>`;
+  const M=mineF(db.maint).filter(m=>!m.done&&state(m)[0]!=='ok').sort((a,b)=>a.due.localeCompare(b.due));
+  const P=mineF(db.projects).filter(p=>!['Live','Done'].includes(p.status));
+  const li=(c,d,r)=>`<div class="li" data-open="${c}:${d.id}"><span>${esc(title(c,d))} <span class="mut">${esc(cname(d.clientId))}</span></span>${r}</div>`;
+  return hdr(greet())+`<div class="grid">
+  <div class="card"><h3>Needs attention</h3>${M.length?M.slice(0,7).map(m=>li('maint',m,`<span>${chip(m)} <span class="mut">${rel(m.due)}</span></span>`)).join(''):'<p class="mut">Nothing overdue or due within 30 days.</p>'}</div>
+  <div class="card"><h3>Active builds</h3>${P.length?P.slice(0,7).map(p=>li('projects',p,`<span class="mut">${p.due?'due '+rel(p.due):p.status}</span>`)).join(''):'<p class="mut">No builds in progress.</p>'}</div>
+  <div class="card"><h3>Pipeline</h3>${STAGES.map(s=>{const a=mineF(db.leads).filter(l=>l.stage===s);return`<div class="li" data-go="pipeline"><span>${s}</span><span>${a.length} <span class="mut">SCR ${a.reduce((n,l)=>n+(+l.budget||0),0).toLocaleString()}</span></span></div>`}).join('')}</div>
+  <div class="card"><h3>Latest activity</h3>${db.activity.slice(0,6).map(a=>`<div class="li" data-go="activity"><span>${esc(a.text)}</span><span class="mut">${esc(a.by)}</span></div>`).join('')||'<p class="mut">No activity yet.</p>'}</div></div>`},
+ pipeline(){
+  const L=mineF(db.leads);
+  if(!db.leads.length)return hdr('Pipeline','leads')+none('leads','No leads yet. Add an inquiry, then drag it across the stages.');
+  return hdr('Pipeline','leads')+`<div class="board">${STAGES.map((s,i)=>{const a=L.filter(l=>l.stage===s);return`<div class="col" data-stage="${i}"><h3>${s}<span>${a.length}</span></h3>${a.map(l=>`<div class="lead" draggable="true" data-drag="${l.id}" data-open="leads:${l.id}"><b>${esc(l.name)}</b><div class="mut">${esc(l.company)}</div><div class="meta"><span>${l.budget?'SCR '+Number(l.budget).toLocaleString():''}</span><span class="tag">${esc(l.owner)}</span></div></div>`).join('')}</div>`}).join('')}</div>`},
+ clients(){
+  if(!db.clients.length)return hdr('Clients','clients',0)+none('clients','No clients yet. Clients link to projects and maintenance tasks.');
+  return hdr('Clients','clients',0)+`<div class="wrap"><table><tr><th>Client<th>Contact<th>Projects<th>Notes</tr>${db.clients.map(c=>`<tr class="row" data-open="clients:${c.id}"><td><b>${esc(c.name)}</b><td>${esc(c.contact)}<td>${db.projects.filter(p=>p.clientId===c.id).length}<td class="mut">${esc(c.notes)}</tr>`).join('')}</table></div>`},
+ projects(){
+  const P=mineF(db.projects);
+  if(!db.projects.length)return hdr('Projects','projects')+none('projects','No projects yet. Track the stack, repo, hosting and deadline for each build.');
+  return hdr('Projects','projects')+`<div class="wrap"><table><tr><th>Project<th>Client<th>Stack<th>Hosting<th>Links<th>Deadline<th>Status<th>Owner</tr>${P.map(p=>`<tr class="row" data-open="projects:${p.id}"><td><b>${esc(p.name)}</b><td>${esc(cname(p.clientId))}<td>${esc(p.stack)}<td>${esc(p.host)}<td>${lnk(p.url,'live')}${lnk(p.repo,'repo')}<td>${esc(p.due)} ${p.due?chip({due:p.due,done:['Live','Done'].includes(p.status)}):''}<td>${esc(p.status)}<td>${esc(p.owner)}</tr>`).join('')}</table></div>`},
+ maintenance(){
+  const M=mineF(db.maint).slice().sort((a,b)=>(a.done?1:0)-(b.done?1:0)||(a.due||'9').localeCompare(b.due||'9'));
+  if(!db.maint.length)return hdr('Maintenance','maint')+none('maint','No tasks yet. Add domain renewals, SSL checks, uptime monitors and backups.');
+  return hdr('Maintenance','maint')+`<div class="wrap"><table><tr><th>Task<th>Client<th>Type<th>Due<th>Status<th>Owner<th></tr>${M.map(m=>`<tr class="row" data-open="maint:${m.id}"><td><b>${esc(m.title)}</b><td>${esc(cname(m.clientId))}<td>${esc(m.type)}<td>${esc(m.due)} <span class="mut">${m.done?'':rel(m.due)}</span><td>${chip(m)}<td>${esc(m.owner)}<td>${m.done?'':`<button class="btn sm" data-done="${m.id}">Mark done</button>`}</tr>`).join('')}</table></div>`},
+ activity(){
+  const A=db.activity;
+  if(!A.length)return hdr('Activity',0,0)+'<div class="card empty">No activity yet. Every change you or your associate make shows up here.</div>';
+  return hdr('Activity',0,0)+`<div class="card">${A.slice(0,actN).map(a=>`<div class="li" style="cursor:default"><span>${esc(a.text)}</span><span class="mut">${esc(a.by)} · ${new Date(a.at).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span></div>`).join('')}${A.length>actN?'<p><button class="btn" data-more>Show more</button></p>':''}</div>`}
+};
+const NAVL=[['dashboard','Dashboard'],['pipeline','Pipeline'],['clients','Clients'],['projects','Projects'],['maintenance','Maintenance'],['activity','Activity']];
+const nav=v=>{const od=db.maint.filter(m=>state(m)[0]==='bad').length;
+ return`<nav>
+   <div class="brand">AXIS<i>Ops</i></div>
+   <div class="links"><i class="ind"></i>${NAVL.map(([k,l])=>`<a href="#/${k}"${k===v?' class="on"':''}>${l}${k==='maintenance'&&od?`<span class="tag s-bad">${od}</span>`:''}</a>`).join('')}</div>
+   <span class="sp"></span>
+   <label for="me">Working as</label>
+   <select id="me">${USERS.map(u=>`<option${u===me?' selected':''}>${u}</option>`).join('')}</select>
+   <button class="btn pri" data-live-bella style="background:var(--gold);color:var(--ink);border:none;font-weight:600">🎙️ Live with Bella</button>
+   <button class="btn" data-search>Search <kbd>Ctrl K</kbd></button>
+   <button class="btn" data-export>Export backup</button>
+ </nav>`};
+let lastV=null,prevI=0;
+function render(){const r=location.hash.slice(2),v=V[r]?r:'dashboard',ch=v!==lastV,i=NAVL.findIndex(n=>n[0]===v);
+ $('#app').innerHTML=nav(v)+`<main${ch?' class="enter"':''}>${V[v]()}</main>`;
+ const ind=$('.ind');ind.style.transform=`translateY(${prevI*38}px)`;ind.offsetHeight;ind.style.transform=`translateY(${i*38}px)`;lastV=v;prevI=i}
+
+/* Search (Ctrl+K) */
+function openSearch(){dlg.innerHTML='<input id="q" placeholder="Search leads, clients, projects, tasks" autocomplete="off" style="width:100%;padding:10px;font:inherit;border:1px solid var(--line);border-radius:6px"><div id="res"></div>';if(!dlg.open)dlg.showModal();$('#q').focus()}
+function hits(q){q=q.toLowerCase();const o=[];for(const k of['leads','clients','projects','maint'])for(const d of db[k])if(Object.values(d).join(' ').toLowerCase().includes(q))o.push([k,d]);return o.slice(0,8)}
+function showHits(q){const h=q?hits(q):[];$('#res').innerHTML=q&&!h.length?'<p class="mut">No matches.</p>':h.map(([k,d])=>`<div class="li" data-open="${k}:${d.id}"><span>${esc(title(k,d))}</span><span class="mut">${NOUN[k]}</span></div>`).join('')}
+
+/* "Hey Bella" Wake Word Hands-Free Engine */
+const voiceDlg=$('#bellaVoiceDlg');
+let recognition=null;
+let isListeningForWakeWord=false;
+let isUserSpeaking=false;
+let chatHistory=[];
+
+if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SpeechRecognition();
+  recognition.continuous = true;
+  recognition.interimResults = true;
+
+  recognition.onresult = async (event) => {
+    let transcript = '';
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      transcript += event.results[i][0].transcript;
+    }
+    transcript = transcript.trim().toLowerCase();
+
+    if (!isUserSpeaking) {
+      if (transcript.includes('bella') || transcript.includes('hey bella')) {
+        isUserSpeaking = true;
+        $('#bellaStatus').textContent = "Listening to your command...";
+        $('#micBtn').textContent = "Listening... Speak now 🔴";
+        $('#micBtn').style.background = "#b3412e";
+        $('#micBtn').style.color = "#fff";
+        playWakeChime();
+      }
+    } else {
+      recognition.stop();
+      isUserSpeaking = false;
+      
+      const promptText = transcript.replace(/hey bella|bella/gi, '').trim();
+      if (!promptText) {
+        $('#bellaStatus').textContent = "Say 'Hey Bella' to try again.";
+        resetMicButton();
+        restartWakeWordListener();
+        return;
+      }
+
+      chatHistory.push({ role: "user", content: promptText });
+      $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
+      $('#bellaStatus').textContent = "Bella is thinking...";
+
+      try {
+        const res = await fetch(`${WORKER_BASE_URL}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ history: chatHistory })
+        });
+        const data = await res.json();
+        
+        chatHistory.push({ role: "assistant", content: data.reply });
+        $('#bellaTranscript').innerHTML = chatHistory.map(m => `<b>${m.role === 'user' ? 'You' : 'Bella'}:</b> ${esc(m.content)}`).join('<br><br>');
+        $('#bellaStatus').textContent = "Playing response...";
+
+        const audio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
+        audio.play();
+        audio.onended = () => { 
+          $('#bellaStatus').textContent = "Listening for 'Hey Bella'...";
+          resetMicButton();
+          restartWakeWordListener();
+        };
+      } catch (err) {
+        $('#bellaStatus').textContent = "Error communicating with Bella.";
+        resetMicButton();
+        restartWakeWordListener();
+      }
+    }
+  };
+
+  recognition.onerror = () => {
+    if (isListeningForWakeWord) {
+      setTimeout(() => { try { recognition.start(); } catch(err){} }, 1000);
+    }
+  };
+
+  recognition.onend = () => {
+    if (isListeningForWakeWord && !isUserSpeaking) {
+      try { recognition.start(); } catch(err){}
+    }
+  };
+}
+
+function restartWakeWordListener() {
+  if (recognition && isListeningForWakeWord) {
+    try { recognition.start(); } catch(err){}
+  }
+}
+
+function resetMicButton() {
+  const micBtn = $('#micBtn');
+  if (micBtn) {
+    micBtn.textContent = "Toggle Hands-Free Mode 🎙️";
+    micBtn.style.background = "var(--gold)";
+    micBtn.style.color = "var(--ink)";
+  }
+}
+
+function playWakeChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.3);
+  } catch(e){}
+}
+
+document.addEventListener('click',e=>{
+ const t=e.target;if(t===dlg){dlg.close();return}if(t===voiceDlg){voiceDlg.close();isListeningForWakeWord=false;if(recognition)recognition.stop();return}if(t.closest('a'))return;
+ const g=s=>t.closest(s);let x;
+ if(g('[data-close]'))dlg.close();
+ else if(t.id==='closeVoice'){voiceDlg.close();isListeningForWakeWord=false;if(recognition)recognition.stop();}
+ else if(t.id==='micBtn'){
+   if(!isListeningForWakeWord){
+     isListeningForWakeWord=true;
+     $('#bellaStatus').textContent = "Listening for 'Hey Bella'...";
+     t.textContent = "Stop Hands-Free 🛑";
+     t.style.background = "#b3412e";
+     t.style.color = "#fff";
+     try{recognition.start();}catch(err){}
+   } else {
+     isListeningForWakeWord=false;
+     try{recognition.stop();}catch(err){}
+     resetMicButton();
+     $('#bellaStatus').textContent = "Hands-free mode paused.";
+   }
+ }
+ else if(t.id==='clearMemory'){chatHistory=[];$('#bellaTranscript').innerHTML='<i>Memory cleared. Ready for a new topic...</i>';}
+ else if(g('[data-live-bella]')){voiceDlg.showModal();if(!chatHistory.length)$('#bellaTranscript').innerHTML='<i>Ready. Click Toggle Hands-Free Mode and say "Hey Bella"...</i>';$('#bellaStatus').textContent='Click the button below to enable listening mode.'}
+ else if(x=g('[data-new]'))openForm(x.dataset.new);
+ else if(x=g('[data-done]'))markDone(x.dataset.done);
+ else if(g('[data-seed]'))seed();
+ else if(g('[data-del]'))remove();
+ else if(g('[data-search]'))openSearch();
+ else if(g('[data-export]'))exportJSON();
+ else if(g('[data-more]')){actN+=30;render()}
+ else if(x=g('[data-go]'))location.hash='#/'+x.dataset.go;
+ else if(x=g('[data-open]')){const[c,i]=x.dataset.open.split(':');openForm(c,i)}
+});
+
+document.addEventListener('change',e=>{
+ if(e.target.id==='mine'){mine=e.target.checked;render()}
+ if(e.target.id==='me'){me=e.target.value;localStorage.setItem('ax-me',me);render()}
+});
+document.addEventListener('input',e=>{if(e.target.id==='q')showHits(e.target.value.trim())});
+document.addEventListener('keydown',e=>{
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch()}
+ if(e.key==='Enter'&&e.target.id==='q'){const h=hits(e.target.value.trim())[0];if(h)openForm(h[0],h[1].id)}
+});
+
+/* Drag leads between pipeline stages */
+let dragId=null;
+document.addEventListener('dragstart',e=>{const l=e.target.closest&&e.target.closest('[data-drag]');if(l){dragId=l.dataset.drag;setTimeout(()=>l.classList.add('dragging'),0);e.dataTransfer.setData('text/plain',dragId)}});
+document.addEventListener('dragover',e=>{const c=e.target.closest&&e.target.closest('.col');if(c&&dragId){e.preventDefault();document.querySelectorAll('.col.over').forEach(x=>x.classList.remove('over'));c.classList.add('over')}});
+document.addEventListener('drop',e=>{
+ const c=e.target.closest&&e.target.closest('.col');if(!c||!dragId)return;e.preventDefault();
+ const l=db.leads.find(x=>x.id===dragId),s=STAGES[+c.dataset.stage];dragId=null;
+ if(l&&l.stage!==s){l.stage=s;store.put('leads',l);log(`Moved lead “${l.name}” to ${s}`)}
+ render();
+});
+document.addEventListener('dragend',()=>{dragId=null;document.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging'));document.querySelectorAll('.col.over').forEach(x=>x.classList.remove('over'))});
+addEventListener('hashchange',render);
+
+/* Splash WebGPU Shader */
+const SPL_NOISE=`
+fn m3(x:vec3f)->vec3f{return x-floor(x*(1.0/289.0))*289.0;}
+fn m4(x:vec4f)->vec4f{return x-floor(x*(1.0/289.0))*289.0;}
+fn perm(x:vec4f)->vec4f{return m4(((x*34.0)+10.0)*x);}
+fn tis(r:vec4f)->vec4f{return 1.79284291400159-0.85373472095314*r;}
+fn fc(t:vec3f)->vec3f{return t*t*t*(t*(t*6.0-15.0)+10.0);}
+fn cnoise(P:vec3f)->f32{
+ var Pi0=floor(P);var Pi1=Pi0+vec3f(1.0);Pi0=m3(Pi0);Pi1=m3(Pi1);
+ let Pf0=fract(P);let Pf1=Pf0-vec3f(1.0);
+ let ix=vec4f(Pi0.x,Pi1.x,Pi0.x,Pi1.x);let iy=vec4f(Pi0.yy,Pi1.yy);let iz0=Pi0.zzzz;let iz1=Pi1.zzzz;
+ let ixy=perm(perm(ix)+iy);let ixy0=perm(ixy+iz0);let ixy1=perm(ixy+iz1);
+ var gx0=ixy0*(1.0/7.0);var gy0=fract(floor(gx0)*(1.0/7.0))-0.5;gx0=fract(gx0);
+ let gz0=vec4f(0.5)-abs(gx0)-abs(gy0);let sz0=step(gz0,vec4f(0.0));
+ gx0-=sz0*(step(vec4f(0.0),gx0)-0.5);gy0-=sz0*(step(vec4f(0.0),gy0)-0.5);
+ var gx1=ixy1*(1.0/7.0);var gy1=fract(floor(gx1)*(1.0/7.0))-0.5;gx1=fract(gx1);
+ let gz1=vec4f(0.5)-abs(gx1)-abs(gy1);let sz1=step(gz1,vec4f(0.0));
+ gx1-=sz1*(step(vec4f(0.0),gx1)-0.5);gy1-=sz1*(step(vec4f(0.0),gy1)-0.5);
+ var g000=vec3f(gx0.x,gy0.x,gz0.x);var g100=vec3f(gx0.y,gy0.y,gz0.y);var g010=vec3f(gx0.z,gy0.z,gz0.z);var g110=vec3f(gx0.w,gy0.w,gz0.w);
+ var g001=vec3f(gx1.x,gy1.x,gz1.x);var g101=vec3f(gx1.y,gy1.y,gz1.y);var g011=vec3f(gx1.z,gy1.z,gz1.z);var g111=vec3f(gx1.w,gy1.w,gz1.w);
+ let n0=tis(vec4f(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));
+ g000*=n0.x;g010*=n0.y;g100*=n0.z;g110*=n0.w;
+ let n1=tis(vec4f(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));
+ g001*=n1.x;g011*=n1.y;g101*=n1.z;g111*=n1.w;
+ let n000=dot(g000,Pf0);let n100=dot(g100,vec3f(Pf1.x,Pf0.yz));let n010=dot(g010,vec3f(Pf0.x,Pf1.y,Pf0.z));let n110=dot(g110,vec3f(Pf1.xy,Pf0.z));
+ let n001=dot(g001,vec3f(Pf0.xy,Pf1.z));let n101=dot(g101,vec3f(Pf1.x,Pf0.y,Pf1.z));let n011=dot(g011,vec3f(Pf0.x,Pf1.yz));let n111=dot(g111,Pf1);
+ let f=fc(Pf0);let nz=mix(vec4f(n000,n100,n010,n110),vec4f(n001,n101,n011,n111),f.z);let ny=mix(nz.xy,nz.zw,f.y);
+ return 2.2*mix(ny.x,ny.y,f.x);}
+fn fbm(p:vec3f)->f32{var t=0.0;var a=1.0;var w=0.0;var fr=1.0;for(var i=0;i<2;i++){t+=a*cnoise(p*fr);w+=a;a*=0.5;fr*=2.0;}return t/w;}
+`;
+const SPL_SHADER=`
+struct P{resolution:vec4f,placement:vec4f,grid:vec4f,field:vec4f,motion:vec4f,color:vec4f,hover:vec4f,background:vec4f}
+@group(0) @binding(0) var<uniform> p:P;
+@group(0) @binding(1) var maskT:texture_2d<f32>;
+@group(0) @binding(2) var maskS:sampler;
+const SEED=vec2f(12.9898,78.233);
+${SPL_NOISE}
+fn sdTri(point:vec2f,q:vec2f)->f32{
+ let pp=vec2f(abs(point.x),point.y);
+ let a=pp-q*clamp(dot(pp,q)/dot(q,q),0.0,1.0);
+ let b=pp-q*vec2f(clamp(pp.x/q.x,0.0,1.0),1.0);
+ let s=-sign(q.y);
+ let d=min(vec2f(dot(a,a),s*(pp.x*q.y-pp.y*q.x)),vec2f(dot(b,b),s*(pp.y-q.y)));
+ return -sqrt(d.x)*sign(d.y);}
+fn shapeD(pt:vec2f,shape:i32,c:f32)->f32{
+ if(shape==0){return max(abs(pt.x),abs(pt.y))-c;}
+ if(shape==1){return length(pt)-c;}
+ return sdTri(vec2f(pt.x,pt.y+c),vec2f(c,2.0*c));}
+fn hash21(q:vec2f)->f32{return fract(sin(dot(q,vec2f(127.1,311.7)))*43758.5453);}
+struct V{@builtin(position) pos:vec4f,@location(0) uv:vec2f}
+@vertex fn vs(@builtin(vertex_index) i:u32)->V{
+ var q=array<vec2f,3>(vec2f(-1.0,-1.0),vec2f(3.0,-1.0),vec2f(-1.0,3.0));
+ let c=q[i];var o:V;o.pos=vec4f(c,0.0,1.0);o.uv=vec2f((c.x+1.0)*0.5,(1.0-c.y)*0.5);return o;}
+@fragment fn fs(@location(0) uv:vec2f)->@location(0) vec4f{
+ let res=p.resolution.xy;let cellPx=p.grid.x;let dotSize=p.grid.y;let cols=i32(p.grid.w+0.5);let bg=p.background.rgb;
+ let pixel=uv*res;let origin=p.placement.xy;let rows=i32(p.placement.z+0.5);
+ let cell=floor((pixel-origin)/cellPx);
+ if(cell.y<0.0||i32(cell.y)>=rows||cell.x<0.0||i32(cell.x)>=cols){return vec4f(bg,1.0);}
+ let center=origin+(cell+0.5)*cellPx;let local=(pixel-center)/(cellPx*0.5);let cellUv=center/res;
+ if(p.motion.z>0.5&&textureSampleLevel(maskT,maskS,cellUv,0.0).r>0.5){return vec4f(bg,1.0);}
+ var level=1.0;let fade=p.motion.w;
+ if(fade>0.0){let q=abs(uv*2.0-1.0);let radius=pow(pow(q.x,2.5)+pow(q.y,2.5),1.0/2.5)/pow(2.0,1.0/2.5);level=1.0-smoothstep(max(0.0,1.0-fade*2.2),1.0,radius);}
+ let noise=fbm(vec3f((center+p.motion.xy)/p.field.x+SEED,p.field.w));
+ let tone=clamp((noise*0.5+0.5-p.field.y)*p.field.z+0.5,0.0,1.0);
+ let band=i32(min(tone,0.999999)*3.0);
+ let shape=2-band;var size=dotSize;
+ let ip=p.placement.w;var front=0.0;
+ if(ip<1.66){
+  let radial=length((center-res*0.5)/(res*0.5))*0.70710678;
+  let warp=cnoise(vec3f(cellUv*vec2f(3.2,2.4)+SEED,4.7))*0.3;
+  let jitter=hash21(cell)*0.16;
+  let spread=radial+warp+jitter+0.3;
+  let bw=0.2*(0.6+0.8*hash21(cell+vec2f(17.0,9.0)));
+  let t=clamp((ip-spread)/bw,0.0,1.0);
+  if(t<=0.0){return vec4f(bg,1.0);}
+  let back=t-1.0;
+  size=max(size*(1.0+2.70158*back*back*back+1.70158*back*back),0.02);
+  front=1.0-smoothstep(0.0,1.0,abs(ip-spread)/bw);}
+ let aa=2.0/cellPx;
+ let cov=smoothstep(aa,-aa,shapeD(local,shape,size));
+ let tint=mix(p.color.rgb,p.hover.rgb,front*0.6);
+ return vec4f(mix(bg,tint,cov*level),1.0);}
+`;
+function splash(){
+ const el=$('#splash'),cv=$('#splash canvas');let raf=0,dev,dead=false;
+ const noGpu=()=>{el.classList.add('nogpu');return new Promise(r=>setTimeout(r,900))};
+ async function run(){
+  const ad=await navigator.gpu.requestAdapter({powerPreference:'low-power'});if(!ad)throw 0;
+  dev=await ad.requestDevice();
+  const ctx=cv.getContext('webgpu'),fmt=navigator.gpu.getPreferredCanvasFormat(),dpr=Math.min(devicePixelRatio||1,2);
+  const W=Math.max(1,Math.round(el.clientWidth*dpr)),H=Math.max(1,Math.round(el.clientHeight*dpr));
+  cv.width=W;cv.height=H;ctx.configure({device:dev,format:fmt,alphaMode:'opaque'});
+  const m=document.createElement('canvas'),k=Math.min(1,1024/Math.max(W,H));m.width=Math.max(1,Math.round(W*k));m.height=Math.max(1,Math.round(H*k));
+  const mc=m.getContext('2d');
+  try{await Promise.race([document.fonts.load('600 32px Fraunces'),new Promise(r=>setTimeout(r,800))])}catch{}
+  mc.fillStyle='#000';mc.fillRect(0,0,m.width,m.height);
+  const font=s=>`600 ${s}px Fraunces,Georgia,serif`;let px=.6*m.height;mc.font=font(px);
+  const mw=mc.measureText('AXIS').width;if(mw>m.width*.9){px*=m.width*.9/mw;mc.font=font(px)}
+  mc.textAlign='center';mc.textBaseline='alphabetic';const t=mc.measureText('AXIS');
+  mc.fillStyle='#fff';mc.fillText('AXIS',(m.width+t.actualBoundingBoxLeft-t.actualBoundingBoxRight)/2,(m.height+t.actualBoundingBoxAscent-t.actualBoundingBoxDescent)/2);
+  const tex=dev.createTexture({size:[m.width,m.height],format:'rgba8unorm',usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
+  dev.queue.copyExternalImageToTexture({source:m},{texture:tex},[m.width,m.height]);
+  const smp=dev.createSampler({minFilter:'linear',magFilter:'linear',addressModeU:'clamp-to-edge',addressModeV:'clamp-to-edge'});
+  const buf=dev.createBuffer({size:128,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const mod=dev.createShaderModule({code:SPL_SHADER});
+  const pipe=dev.createRenderPipeline({layout:'auto',vertex:{module:mod,entryPoint:'vs'},fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt}]}});
+  const bind=dev.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:buf}},{binding:1,resource:tex.createView()},{binding:2,resource:smp}]});
+  const cols=Math.max(1,Math.round(W/(10*dpr))),cell=W/cols,rows=Math.max(1,Math.floor(H/cell)),oy=(H-rows*cell)/2;
+  const END=1.66,DUR=2.4,SPEED=1.7,t0=performance.now(),U=new Float32Array(32);
+  let last=t0,time=0,dx=0,first=true,done;const fin=new Promise(r=>done=r);
+  const draw=now=>{
+   if(dead)return;
+   const dt=Math.min(.1,(now-last)/1000);last=now;time+=dt*.1*SPEED;dx+=SPEED*cell*dt;
+   const ip=Math.min(END,(now-t0)/1000/DUR*END);
+   U.set([W,H,1/W,1/H, 0,oy,rows,ip, cell,.66,0,cols, 32*cell*.9,.548,6.72,time, dx,0,1,.25, .373,.455,.6,1, .79,.64,.29,1, .059,.106,.176,1]);
+   dev.queue.writeBuffer(buf,0,U);
+   const enc=dev.createCommandEncoder(),pass=enc.beginRenderPass({colorAttachments:[{view:ctx.getCurrentTexture().createView(),clearValue:{r:0,g:0,b:0,a:1},loadOp:'clear',storeOp:'store'}]});
+   pass.setPipeline(pipe);pass.setBindGroup(0,bind);pass.draw(3);pass.end();dev.queue.submit([enc.finish()]);
+   if(first){first=false;cv.classList.add('on')}
+   if(ip>=END)done();
+   raf=requestAnimationFrame(draw)};
+  raf=requestAnimationFrame(draw);
+  return fin;
+ }
+ const ready=new Promise(res=>{
+  el.addEventListener('click',()=>res());
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){res();return}
+  (navigator.gpu?run().catch(noGpu):noGpu()).then(res);
+ });
+ const hide=()=>{el.classList.add('out');setTimeout(()=>{dead=true;cancelAnimationFrame(raf);try{dev&&dev.destroy()}catch{}el.remove()},700)};
+ return{ready,hide};
+}
+const sp=splash();
+Promise.all([store.load(),sp.ready]).then(([d])=>{db=d;document.body.classList.add('first');setTimeout(()=>document.body.classList.remove('first'),1400);render();sp.hide()}).catch(()=>{sp.hide();$('#app').innerHTML='<p class="empty">Couldn’t load your data. Reload the page; if this keeps happening, check your Firestore connection rules.</p>'});
+</script></body></html>
