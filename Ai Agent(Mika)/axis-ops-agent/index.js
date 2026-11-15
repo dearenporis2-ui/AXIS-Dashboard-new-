@@ -1,26 +1,49 @@
 export default {
+  async getFirebaseToken(env) {
+    const authUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${env.FIREBASE_WEB_API_KEY}`;
+    const res = await fetch(authUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: env.WORKER_EMAIL,
+        password: env.WORKER_PASSWORD,
+        returnSecureToken: true,
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(`Firebase Auth Error: ${JSON.stringify(data)}`);
+    return data.idToken;
+  },
+
   async runBriefing(env, specificPayload = null) {
     const today = new Date().toISOString().split("T")[0];
     const baseUrl = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents`;
-
     const collections = ["leads", "projects", "maint", "clients", "tasks"];
     let allItems = [];
 
     if (specificPayload) {
       allItems.push(`- [NEW EVENT] ${JSON.stringify(specificPayload)}`);
     } else {
+      const idToken = await this.getFirebaseToken(env);
+
       for (const col of collections) {
         try {
-          const res = await fetch(`${baseUrl}/${col}`);
-          if (!res.ok) continue; 
+          const res = await fetch(`${baseUrl}/${col}`, {
+            headers: { Authorization: `Bearer ${idToken}` },
+          });
+          if (!res.ok) continue;
           const data = await res.json();
           const docs = data.documents || [];
-          
+
           docs.forEach((doc) => {
             const fields = doc.fields || {};
             let itemText = "";
-            const preferredKeys = ["name", "title", "company", "client", "contact", "stack", "budget", "stage", "status", "assignedTo", "notes", "scope"];
-            
+            const preferredKeys = [
+              "name", "title", "company", "client", "contact",
+              "stack", "budget", "stage", "status", "assignedTo",
+              "notes", "scope"
+            ];
+
             for (const preferred of preferredKeys) {
               const val = fields[preferred]?.stringValue || fields[preferred]?.integerValue;
               if (val) {
@@ -29,11 +52,11 @@ export default {
             }
 
             if (itemText) {
-              allItems.push(`- [${col.toUpperCase()}] ${itemText.replace(/,\s*$/, '')}`);
+              allItems.push(`- [${col.toUpperCase()}] ${itemText.replace(/,\s*$/, "")}`);
             }
           });
         } catch (e) {
-          console.error(`Skipping collection ${col} due to error:`, e);
+          console.error(`Skipping collection ${col}:`, e);
         }
       }
     }
@@ -44,8 +67,8 @@ export default {
         : "No active tasks, projects, or maintenance items found. All systems are clear.";
 
     const groqUrl = "https://api.groq.com/openai/v1/chat/completions";
-    
     let prompt = "";
+
     if (specificPayload) {
       const itemData = specificPayload.item || specificPayload;
       prompt = `You are Bella, the executive AI Operations Assistant for AXIS Digital Engineering. A new event or update just came in: ${JSON.stringify(itemData)}. 
@@ -67,7 +90,7 @@ Keep it under 100 words, conversational, formatted strictly as spoken dialogue w
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${env.GROQ_API_KEY}`,
+        Authorization: `Bearer ${env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
         model: "openai/gpt-oss-120b",
@@ -107,7 +130,7 @@ Keep it under 100 words, conversational, formatted strictly as spoken dialogue w
   },
 
   async generateAudio(env, text) {
-    const VOICE_ID = env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL"; 
+    const VOICE_ID = env.ELEVENLABS_VOICE_ID || "EXAVITQu4vr4xnSDxMaL";
     const ttsResponse = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`,
       {
@@ -139,7 +162,7 @@ Keep it under 100 words, conversational, formatted strictly as spoken dialogue w
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, x-axis-secret",
     };
 
     if (request.method === "OPTIONS") {
@@ -147,19 +170,32 @@ Keep it under 100 words, conversational, formatted strictly as spoken dialogue w
     }
 
     if (url.pathname === "/trigger") {
+      const secret = request.headers.get("x-axis-secret");
+      if (env.TRIGGER_SECRET && secret !== env.TRIGGER_SECRET) {
+        return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+      }
+
       try {
         let payload = null;
         if (request.method === "POST") {
           payload = await request.json().catch(() => null);
         }
-
         await this.runBriefing(env, payload);
-        return new Response("✅ AXIS Executive Agent executed successfully!", { status: 200, headers: corsHeaders });
+        return new Response("✅ AXIS Executive Agent executed successfully!", {
+          status: 200,
+          headers: corsHeaders,
+        });
       } catch (error) {
-        return new Response(`❌ Error: ${error.message}`, { status: 500, headers: corsHeaders });
+        return new Response(`❌ Error: ${error.message}`, {
+          status: 500,
+          headers: corsHeaders,
+        });
       }
     }
 
-    return new Response("AXIS Executive Ops Agent is online.", { status: 200, headers: corsHeaders });
+    return new Response("AXIS Executive Ops Agent is online.", {
+      status: 200,
+      headers: corsHeaders,
+    });
   },
 };

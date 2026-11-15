@@ -86,12 +86,37 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 @media(prefers-reduced-motion:reduce){*,::before,::backdrop{animation:none!important;transition:none!important}}
 </style>
 </head>
-<body><div id="splash"><canvas></canvas><b class="sw">AXIS</b></div><div id="app"><p class="empty">Loading…</p></div><dialog id="dlg"></dialog>
+<body>
+
+  <!-- GOOGLE LOGIN GATE OVERLAY -->
+  <div id="auth-gate" style="position:fixed;inset:0;background:#0b1528;display:none;align-items:center;justify-content:center;z-index:10000;font-family:'Work Sans',sans-serif;">
+    <div style="background:#13233f;padding:32px;border-radius:16px;width:100%;max-width:360px;box-shadow:0 20px 50px rgba(0,0,0,0.5);border:1px solid #1f365c;text-align:center;">
+      <h2 style="color:#fff;margin:0 0 6px;font-size:22px;">AXIS <span style="color:#f59e0b;font-size:14px;">Ops</span></h2>
+      <p style="color:#94a3b8;font-size:13px;margin:0 0 24px;">Restricted Operations Portal. Sign in with your authorized Google account.</p>
+
+      <button id="google-login-btn" style="width:100%;padding:12px;border:1px solid #28426e;border-radius:8px;background:#fff;color:#1e293b;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"/>
+          <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.13 0-5.78-2.11-6.73-4.96H1.18v3.15C3.16 21.32 7.22 24 12 24z"/>
+          <path fill="#FBBC05" d="M5.27 14.24c-.25-.72-.38-1.49-.38-2.24s.13-1.52.38-2.24V6.61H1.18C.43 8.12 0 9.81 0 12s.43 3.88 1.18 5.39l4.09-3.15z"/>
+          <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.22 0 3.16 2.68 1.18 6.61l4.09 3.15c.95-2.85 3.6-4.96 6.73-4.96z"/>
+        </svg>
+        Sign in with Google
+      </button>
+
+      <p id="login-error" style="color:#ef4444;font-size:12px;margin:14px 0 0;display:none;"></p>
+    </div>
+  </div>
+
+  <div id="splash"><canvas></canvas><b class="sw">AXIS</b></div>
+  <div id="app"><p class="empty">Loading…</p></div>
+  <dialog id="dlg"></dialog>
 
 <!-- Firebase SDK Imports via CDN -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCLwX25jpMaQeMv39cz3OMFFGRDIJmlzMc",
@@ -105,8 +130,17 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const firestore = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+provider.setCustomParameters({ prompt: "select_account" });
+
+// Authorized Email Whitelist
+const ADMIN_EMAILS = ["dearenporice@gmail.com"];
+const STAFF_EMAILS = []; // Add staff emails here if needed
+const ALLOWED_EMAILS = [...ADMIN_EMAILS, ...STAFF_EMAILS];
 
 const WORKER_BASE_URL = "https://axis-ops-agent.axis-ops.workers.dev";
+const TRIGGER_SECRET = "axis_sec_99281";
 
 const STAGES=['Inquiry / Scope','Proposal / Quoted','Active Build','Completed / Handed Over','Archived'];
 const USERS=['Dearen','Associate'],HOSTS=['Netlify','Firebase','Vercel','Supabase','Cloudflare','GitHub Pages'];
@@ -122,6 +156,48 @@ const NOUN={leads:'lead',clients:'client',projects:'project',maint:'maintenance 
 const DEF={leads:{stage:STAGES[0]},projects:{status:'Planning'},maint:{type:MT[0]}};
 const EMPTY=()=>({leads:[],clients:[],projects:[],maint:[],activity:[]});
 let db=EMPTY(),me=localStorage.getItem('ax-me')||USERS[0],mine=false,actN=30,cur=null;
+
+/* Authentication State Watcher */
+onAuthStateChanged(auth, async (user) => {
+  const gate = $('#auth-gate');
+  const errorEl = $('#login-error');
+
+  if (user) {
+    const email = user.email.toLowerCase();
+    if (!ALLOWED_EMAILS.includes(email)) {
+      errorEl.textContent = "Access Denied: This Google account is not authorized for AXIS Ops.";
+      errorEl.style.display = "block";
+      await signOut(auth);
+      gate.style.display = "flex";
+      return;
+    }
+
+    const isAdmin = ADMIN_EMAILS.includes(email);
+    document.body.dataset.role = isAdmin ? "admin" : "staff";
+
+    gate.style.display = "none";
+    initApp();
+  } else {
+    gate.style.display = "flex";
+  }
+});
+
+$('#google-login-btn').onclick = async () => {
+  const errorEl = $('#login-error');
+  errorEl.style.display = "none";
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    console.error("Login Error:", err);
+    errorEl.textContent = "Sign-in cancelled or failed. Check authorized domains in Firebase.";
+    errorEl.style.display = "block";
+  }
+};
+
+window.logoutAxis = async () => {
+  await signOut(auth);
+  window.location.reload();
+};
 
 /* Firestore Cloud Adapter */
 const FirestoreStore={
@@ -172,7 +248,10 @@ async function save(c,d,isNew,msg){
     try {
       await fetch(`${WORKER_BASE_URL}/trigger`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-axis-secret": TRIGGER_SECRET
+        },
         body: JSON.stringify({ collection: c, item: d })
       });
     } catch (err) {
@@ -264,6 +343,7 @@ const nav=v=>{const od=db.maint.filter(m=>state(m)[0]==='bad').length;
    <select id="me">${USERS.map(u=>`<option${u===me?' selected':''}>${u}</option>`).join('')}</select>
    <button class="btn" data-search>Search <kbd>Ctrl K</kbd></button>
    <button class="btn" data-export>Export backup</button>
+   <button class="btn bad" style="margin-top:8px" onclick="logoutAxis()">Sign Out</button>
  </nav>`};
 let lastV=null,prevI=0;
 function render(){const r=location.hash.slice(2),v=V[r]?r:'dashboard',ch=v!==lastV,i=NAVL.findIndex(n=>n[0]===v);
@@ -315,7 +395,13 @@ document.addEventListener('drop',e=>{
 document.addEventListener('dragend',()=>{dragId=null;document.querySelectorAll('.dragging').forEach(x=>x.classList.remove('dragging'));document.querySelectorAll('.col.over').forEach(x=>x.classList.remove('over'))});
 addEventListener('hashchange',render);
 
-/* Splash WebGPU Shader */
+async function initApp(){
+  db = await store.load();
+  render();
+  splashAnim();
+}
+
+/* Splash WebGPU Shader Animation */
 const SPL_NOISE=`
 fn m3(x:vec3f)->vec3f{return x-floor(x*(1.0/289.0))*289.0;}
 fn m4(x:vec4f)->vec4f{return x-floor(x*(1.0/289.0))*289.0;}
@@ -398,10 +484,10 @@ struct V{@builtin(position) pos:vec4f,@location(0) uv:vec2f}
  let tint=mix(p.color.rgb,p.hover.rgb,front*0.6);
  return vec4f(mix(bg,tint,cov*level),1.0);}
 `;
-function splash(){
+async function splash(){
  const el=$('#splash'),cv=$('#splash canvas');let raf=0,dev,dead=false;
  const noGpu=()=>{el.classList.add('nogpu');return new Promise(r=>setTimeout(r,900))};
- async function run(){
+ try{
   const ad=await navigator.gpu.requestAdapter({powerPreference:'low-power'});if(!ad)throw 0;
   dev=await ad.requestDevice();
   const ctx=cv.getContext('webgpu'),fmt=navigator.gpu.getPreferredCanvasFormat(),dpr=Math.min(devicePixelRatio||1,2);
@@ -417,36 +503,61 @@ function splash(){
   mc.fillStyle='#fff';mc.fillText('AXIS',(m.width+t.actualBoundingBoxLeft-t.actualBoundingBoxRight)/2,(m.height+t.actualBoundingBoxAscent-t.actualBoundingBoxDescent)/2);
   const tex=dev.createTexture({size:[m.width,m.height],format:'rgba8unorm',usage:GPUTextureUsage.TEXTURE_BINDING|GPUTextureUsage.COPY_DST|GPUTextureUsage.RENDER_ATTACHMENT});
   dev.queue.copyExternalImageToTexture({source:m},{texture:tex},[m.width,m.height]);
-  const smp=dev.createSampler({minFilter:'linear',magFilter:'linear',addressModeU:'clamp-to-edge',addressModeV:'clamp-to-edge'});
-  const buf=dev.createBuffer({size:128,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const smpl=dev.createSampler({magFilter:'linear',minFilter:'linear'});
   const mod=dev.createShaderModule({code:SPL_SHADER});
-  const pipe=dev.createRenderPipeline({layout:'auto',vertex:{module:mod,entryPoint:'vs'},fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt}]}});
-  const bind=dev.createBindGroup({layout:pipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:buf}},{binding:1,resource:tex.createView()},{binding:2,resource:smp}]});
-  const cols=Math.max(1,Math.round(W/(10*dpr))),cell=W/cols,rows=Math.max(1,Math.floor(H/cell)),oy=(H-rows*cell)/2;
-  const END=1.66,DUR=2.4,SPEED=1.7,t0=performance.now(),U=new Float32Array(32);
-  let last=t0,time=0,dx=0,first=true,done;const fin=new Promise(r=>done=r);
-  const draw=now=>{
-   if(dead)return;
-   const dt=Math.min(.1,(now-last)/1000);last=now;time+=dt*.1*SPEED;dx+=SPEED*cell*dt;
-   const ip=Math.min(END,(now-t0)/1000/DUR*END);
-   U.set([W,H,1/W,1/H, 0,oy,rows,ip, cell,.66,0,cols, 32*cell*.9,.548,6.72,time, dx,0,1,.25, .373,.455,.6,1, .79,.64,.29,1, .059,.106,.176,1]);
-   dev.queue.writeBuffer(buf,0,U);
-   const enc=dev.createCommandEncoder(),pass=enc.beginRenderPass({colorAttachments:[{view:ctx.getCurrentTexture().createView(),clearValue:{r:0,g:0,b:0,a:1},loadOp:'clear',storeOp:'store'}]});
-   pass.setPipeline(pipe);pass.setBindGroup(0,bind);pass.draw(3);pass.end();dev.queue.submit([enc.finish()]);
-   if(first){first=false;cv.classList.add('on')}
-   if(ip>=END)done();
-   raf=requestAnimationFrame(draw)};
-  raf=requestAnimationFrame(draw);
-  return fin;
+  const uBuf=dev.createBuffer({size:144,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+  const bgl=dev.createBindGroupLayout({entries:[
+   {binding:0,visibility:GPUShaderStage.FRAGMENT,buffer:{type:'uniform'}},
+   {binding:1,visibility:GPUShaderStage.FRAGMENT,texture:{sampleType:'float'}},
+   {binding:2,visibility:GPUShaderStage.FRAGMENT,sampler:{type:'filtering'}}
+  ]});
+  const pl=dev.createPipelineLayout({bindGroupLayouts:[bgl]});
+  const pipe=dev.createRenderPipeline({layout:pl,vertex:{module:mod,entryPoint:'vs'},fragment:{module:mod,entryPoint:'fs',targets:[{format:fmt}]}});
+  const bind=dev.createBindGroup({layout:bgl,entries:[
+   {binding:0,resource:{buffer:uBuf}},
+   {binding:1,resource:tex.createView()},
+   {binding:2,resource:smpl}
+  ]});
+  const cellPx=12,dotSize=3.8,cols=Math.ceil(W/cellPx),rows=Math.ceil(H/cellPx);
+  const uData=new Float32Array(36);
+  uData[0]=W;uData[1]=H;uData[4]=0;uData[5]=0;uData[6]=rows;uData[7]=2.2;
+  uData[8]=cellPx;uData[9]=dotSize;uData[11]=cols;
+  uData[12]=90;uData[13]=-0.1;uData[14]=3.2;uData[15]=0;
+  uData[16]=0;uData[17]=0;uData[18]=1;uData[19]=0;
+  uData[20]=0.788;uData[21]=0.635;uData[22]=0.294;
+  uData[24]=0.95;uData[25]=0.92;uData[26]=0.85;
+  const start=performance.now();
+  cv.classList.add('on');
+  await new Promise(r=>setTimeout(r,120));
+  return new Promise(res=>{
+   function frame(now){
+    if(dead)return;
+    const elps=(now-start)/1000,p=Math.min(1,elps/1.4);
+    uData[7]=p*2.4;
+    uData[16]=elps*15;
+    dev.queue.writeBuffer(uBuf,0,uData);
+    const cmd=dev.createCommandEncoder();
+    const pass=cmd.beginRenderPass({colorAttachments:[{view:ctx.getCurrentTexture().createView(),clearValue:{r:.06,g:.11,b:.18,a:1},loadOp:'clear',storeOp:'store'}]});
+    pass.setPipeline(pipe);pass.setBindGroup(0,bind);pass.draw(3);pass.end();
+    dev.queue.submit([cmd.finish()]);
+    if(p<1){raf=requestAnimationFrame(frame)}else{
+     setTimeout(()=>{
+      el.classList.add('out');
+      setTimeout(()=>{el.remove();res()},600);
+     },250);
+    }
+   }
+   raf=requestAnimationFrame(frame);
+  });
+ }catch{
+  await noGpu();
+  el.classList.add('out');
+  setTimeout(()=>el.remove(),600);
  }
- const ready=new Promise(res=>{
-  el.addEventListener('click',()=>res());
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches){res();return}
-  (navigator.gpu?run().catch(noGpu):noGpu()).then(res);
- });
- const hide=()=>{el.classList.add('out');setTimeout(()=>{dead=true;cancelAnimationFrame(raf);try{dev&&dev.destroy()}catch{}el.remove()},700)};
- return{ready,hide};
 }
-const sp=splash();
-Promise.all([store.load(),sp.ready]).then(([d])=>{db=d;document.body.classList.add('first');setTimeout(()=>document.body.classList.remove('first'),1400);render();sp.hide()}).catch(()=>{sp.hide();$('#app').innerHTML='<p class="empty">Couldn’t load your data. Reload the page; if this keeps happening, check your Firestore connection rules.</p>'});
-</script></body></html>
+function splashAnim(){
+  // Handled inside initApp after auth & loading
+}
+</script>
+</body>
+</html>
