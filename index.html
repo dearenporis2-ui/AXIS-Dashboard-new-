@@ -552,10 +552,10 @@ if (recognition) {
   };
 }
 
-function togglePhoneModal() {
+window.togglePhoneModal = function() {
   const modal = document.getElementById("bellaModal");
   modal.classList.toggle("open");
-}
+};
 
 function startRingtone() {
   try {
@@ -580,7 +580,7 @@ function stopRingtone() {
   if (ringtoneInterval) clearInterval(ringtoneInterval);
 }
 
-function triggerIncomingCall() {
+window.triggerIncomingCall = function() {
   const modal = document.getElementById("bellaModal");
   modal.classList.add("open", "ringing");
   document.getElementById("callState").innerText = "INCOMING CALL...";
@@ -589,9 +589,9 @@ function triggerIncomingCall() {
   document.getElementById("idleControls").classList.add("hidden");
   document.getElementById("ringControls").classList.remove("hidden");
   startRingtone();
-}
+};
 
-async function answerCall() {
+window.answerCall = async function() {
   stopRingtone();
   isCallActive = true;
   conversationHistory = [];
@@ -601,7 +601,7 @@ async function answerCall() {
   document.getElementById("ringControls").classList.add("hidden");
   document.getElementById("activeControls").classList.remove("hidden");
   await sendToBella("", true);
-}
+};
 
 function startListening() {
   if (!isCallActive || !recognition) return;
@@ -637,10 +637,11 @@ async function sendToBella(userText, isOpening) {
     document.getElementById("subStatus").innerText = "Bella is speaking...";
 
     currentAudio = new Audio("data:audio/mpeg;base64," + data.audioBase64);
-    currentAudio.onended = () => {
+    currentAudio.onended = async () => {
       currentAudio = null;
-      // Refresh local view if tool updated something in background
-      initApp();
+      // Silently reload database data to reflect any tool changes on screen without restarting splash animation
+      db = await store.load();
+      render();
       if (data.hangUp) {
         endCall();
       } else {
@@ -654,7 +655,7 @@ async function sendToBella(userText, isOpening) {
   }
 }
 
-function endCall() {
+window.endCall = function() {
   stopRingtone();
   isCallActive = false;
   if (recognition) try { recognition.stop(); } catch (e) {}
@@ -669,7 +670,7 @@ function endCall() {
   setTimeout(() => {
     modal.classList.remove("open");
   }, 2000);
-}
+};
 </script>
 </body>
 </html>
