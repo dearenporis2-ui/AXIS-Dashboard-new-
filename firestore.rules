@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function isBootstrapAdmin() {
+      return signedIn() && request.auth.token.email == 'dearenporis2@gmail.com';
+    }
+
+    function myTeamPath() {
+      return /databases/$(database)/documents/team/$(request.auth.token.email);
+    }
+
+    function isAdmin() {
+      return signedIn() && (isBootstrapAdmin() ||
+        (exists(myTeamPath()) && get(myTeamPath()).data.role == 'admin'));
+    }
+
+    function isMember() {
+      return signedIn() && (isBootstrapAdmin() ||
+        (exists(myTeamPath()) && get(myTeamPath()).data.role in ['admin', 'staff']));
+    }
+
+    match /team/{email} {
+      // Members can view the approved roster; only admins can change approvals and roles.
+      allow get: if signedIn() && (request.auth.token.email == email || isAdmin());
+      allow list: if isMember();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        signedIn() && request.auth.token.email == email &&
+        request.resource.data.email == resource.data.email &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'updatedAt']) &&
+        request.resource.data.username is string &&
+        request.resource.data.username.size() > 0 &&
+        request.resource.data.username.size() <= 40
+      );
+    }
+
+    // Every dashboard data collection is private to approved team accounts.
+    match /{collection}/{document} {
+      allow read, write: if isMember() && collection in ['leads', 'clients', 'projects', 'maint', 'activity'];
+    }
+  }
+}

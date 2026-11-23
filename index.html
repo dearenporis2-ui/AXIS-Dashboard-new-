@@ -91,7 +91,7 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
   <div id="auth-gate" style="position:fixed;inset:0;background:#0b1528;display:none;align-items:center;justify-content:center;z-index:10000;font-family:'Work Sans',sans-serif;">
     <div style="background:#13233f;padding:32px;border-radius:16px;width:100%;max-width:360px;box-shadow:0 20px 50px rgba(0,0,0,0.5);border:1px solid #1f365c;text-align:center;">
       <h2 style="color:#fff;margin:0 0 6px;font-size:22px;">AXIS <span style="color:#f59e0b;font-size:14px;">Ops</span></h2>
-      <p style="color:#94a3b8;font-size:13px;margin:0 0 24px;">Restricted Operations Portal. Sign in with your authorized Google account.</p>
+      <p style="color:#94a3b8;font-size:13px;margin:0 0 24px;">AXIS Ops team access. Sign in with your approved Google account.</p>
 
       <button id="google-login-btn" style="width:100%;padding:12px;border:1px solid #28426e;border-radius:8px;background:#fff;color:#1e293b;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-size:14px;">
         <svg width="18" height="18" viewBox="0 0 24 24">
@@ -114,7 +114,7 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 <!-- Firebase SDK Imports via CDN -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Helper definitions first
@@ -150,16 +150,15 @@ const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 provider.setCustomParameters({ prompt: "select_account" });
 
-// Authorized Email Whitelist
+// The first admin is the bootstrap owner. Other accounts and roles are managed in the Team panel.
 const ADMIN_EMAILS = ["dearenporis2@gmail.com"];
-const STAFF_EMAILS = [];
-const ALLOWED_EMAILS = [...ADMIN_EMAILS, ...STAFF_EMAILS];
 
 const WORKER_BASE_URL = "https://axis-ops-agent.axis-ops.workers.dev";
 const TRIGGER_SECRET = "axis_sec_99281";
 
 const STAGES=['Inquiry / Scope','Proposal / Quoted','Active Build','Completed / Handed Over','Archived'];
-const USERS=['Dearen','Associate'],HOSTS=['Netlify','Firebase','Vercel','Supabase','Cloudflare','GitHub Pages'];
+let USERS=['Dearen','Associate'];
+const HOSTS=['Netlify','Firebase','Vercel','Supabase','Cloudflare','GitHub Pages'];
 const MT=['Domain (Namecheap)','SSL certificate','Hosting / database health','Uptime (UptimeRobot)','Backup'];
 const PS=['Planning','In progress','Live','Done'];
 const F={
@@ -171,7 +170,7 @@ const F={
 const NOUN={leads:'lead',clients:'client',projects:'project',maint:'maintenance task'};
 const DEF={leads:{stage:STAGES[0]},projects:{status:'Planning'},maint:{type:MT[0]}};
 const EMPTY=()=>({leads:[],clients:[],projects:[],maint:[],activity:[]});
-let db=EMPTY(),me=localStorage.getItem('ax-me')||USERS[0],mine=false,actN=30,cur=null;
+let db=EMPTY(),me='',userEmail='',userRole='',team=[],mine=false,actN=30,cur=null;
 
 /* Authentication State Watcher */
 onAuthStateChanged(auth, async (user) => {
@@ -179,20 +178,33 @@ onAuthStateChanged(auth, async (user) => {
   const errorEl = $('#login-error');
 
   if (user) {
-    const email = user.email.toLowerCase();
-    if (!ALLOWED_EMAILS.includes(email)) {
-      errorEl.textContent = "Access Denied: This Google account is not authorized for AXIS Ops.";
-      errorEl.style.display = "block";
-      await signOut(auth);
-      gate.style.display = "flex";
-      return;
+    try {
+      userEmail = (user.email || '').toLowerCase();
+      let profileSnap = await getDoc(doc(firestore, 'team', userEmail));
+      if (!profileSnap.exists() && ADMIN_EMAILS.includes(userEmail)) {
+        await setDoc(doc(firestore, 'team', userEmail), {email:userEmail,role:'admin',username:'Dearen',createdAt:Date.now()});
+        profileSnap = await getDoc(doc(firestore, 'team', userEmail));
+      }
+      if (!profileSnap.exists() || !['admin','staff'].includes(profileSnap.data().role)) {
+        await signOut(auth);
+        errorEl.textContent = 'This Google account has not been approved by your AXIS admin yet.';
+        errorEl.style.display = 'block';
+        gate.style.display = 'flex';
+        return;
+      }
+      const profile = profileSnap.data();
+      userRole = ADMIN_EMAILS.includes(userEmail) ? 'admin' : profile.role;
+      me = (profile.username || '').trim();
+      document.body.dataset.role = userRole;
+      gate.style.display = 'none';
+      if (!me) return chooseUsername();
+      await initApp();
+    } catch (err) {
+      console.error('Access check failed:', err);
+      errorEl.textContent = 'Could not verify your team access. Check your connection and try again.';
+      errorEl.style.display = 'block';
+      gate.style.display = 'flex';
     }
-
-    const isAdmin = ADMIN_EMAILS.includes(email);
-    document.body.dataset.role = isAdmin ? "admin" : "staff";
-
-    gate.style.display = "none";
-    initApp();
   } else {
     gate.style.display = "flex";
   }
@@ -236,6 +248,46 @@ const FirestoreStore={
  }
 };
 const store=FirestoreStore;
+
+async function refreshTeam(){
+  const snap = await getDocs(collection(firestore,'team'));
+  team = snap.docs.map(d=>({email:d.id,...d.data()})).filter(x=>['admin','staff'].includes(x.role));
+  USERS = [...new Set(team.map(x=>x.username).filter(Boolean))];
+  if (!USERS.includes(me)) USERS.unshift(me);
+  if (!USERS.length) USERS=['Dearen','Associate'];
+}
+function chooseUsername(){
+  const d=dlg();
+  d.innerHTML=`<form id="username-form"><h2>Choose your dashboard name</h2><p class="mut">This name appears on assignments and activity. Your role is assigned by the admin.</p><label>Your name<input name="username" maxlength="40" required autocomplete="name"></label><div class="acts"><span></span><button class="btn pri">Continue</button></div></form>`;
+  d.showModal();
+  $('#username-form').onsubmit=async e=>{
+    e.preventDefault();
+    const name=new FormData(e.target).get('username').trim();
+    if(!name)return;
+    try{
+      await updateDoc(doc(firestore,'team',userEmail),{username:name,updatedAt:Date.now()});
+      me=name;d.close();await initApp();
+    }catch(err){console.error(err);alert('Could not save your name. Please try again.');}
+  };
+}
+window.openTeam=async()=>{
+  await refreshTeam();
+  const d=dlg();
+  d.style.maxHeight='85vh';d.style.overflow='auto';
+  d.innerHTML=`<form id="team-form"><h2>Team access</h2><p class="mut">Approve a Google account by email and choose its role. The person chooses their own dashboard name at first sign-in.</p><label>Google account email<input name="email" type="email" required placeholder="associate@example.com"></label><label>Role<select name="role"><option value="staff">Staff</option><option value="admin">Admin</option></select></label><div class="acts"><span></span><button type="button" class="btn" data-close>Cancel</button><button class="btn pri">Approve account</button></div></form><hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><h3>Approved accounts</h3><div>${team.map(m=>`<div class="li" style="cursor:default"><span><b>${esc(m.username||'Name not set')}</b><br><small class="mut">${esc(m.email)} · ${esc(m.role)}</small></span>${m.email===userEmail?'<span class="tag">You</span>':`<button type="button" class="btn bad sm" data-revoke="${esc(m.email)}">Remove</button>`}</div>`).join('')||'<p class="mut">No team accounts yet.</p>'}</div>`;
+  d.showModal();
+  $('#team-form').onsubmit=async e=>{
+    e.preventDefault();const f=new FormData(e.target),email=String(f.get('email')).trim().toLowerCase(),role=String(f.get('role'));
+    if(!email||!['staff','admin'].includes(role))return;
+    try{await setDoc(doc(firestore,'team',email),{email,role,username:'',createdAt:Date.now()},{merge:true});d.close();await openTeam();}
+    catch(err){console.error(err);alert('Could not approve this account. Check your admin access and try again.');}
+  };
+  d.querySelectorAll('[data-revoke]').forEach(b=>b.onclick=async()=>{
+    if(!confirm(`Remove dashboard access for ${b.dataset.revoke}?`))return;
+    try{await deleteDoc(doc(firestore,'team',b.dataset.revoke));d.close();await openTeam();}
+    catch(err){console.error(err);alert('Could not remove this account.');}
+  });
+};
 
 function log(text){const a={id:uid(),at:Date.now(),by:me,text};db.activity.unshift(a);store.put('activity',a)}
 
@@ -303,7 +355,7 @@ function exportJSON(){const a=document.createElement('a');a.href=URL.createObjec
 /* Views */
 const hdr=(t,c,mi=1)=>`<div class="top"><h1>${t}</h1>${mi?`<label class="chk"><input type="checkbox" id="mine"${mine?' checked':''}> Mine only</label>`:''}${c?`<button class="btn pri" data-new="${c}">New ${NOUN[c]}</button>`:''}</div>`;
 const none=(c,t)=>`<div class="card empty">${t}<br><br><button class="btn pri" data-new="${c}">Add ${NOUN[c]}</button></div>`;
-const greet=()=>{const h=new Date().getHours();return`Good ${h<12?'morning':h<18?'afternoon':'evening'}${me==='Dearen'?', Dearen':''}<small>${new Date().toLocaleDateString([],{weekday:'long',day:'numeric',month:'long'})}</small>`};
+const greet=()=>{const h=new Date().getHours();return`Good ${h<12?'morning':h<18?'afternoon':'evening'}, ${esc(me)}<small>${new Date().toLocaleDateString([],{weekday:'long',day:'numeric',month:'long'})}</small>`};
 const V={
  dashboard(){
   if(!['leads','clients','projects','maint'].some(k=>db[k].length))return hdr(greet(),0,0)+`<div class="card empty">Nothing tracked yet. Add your first lead or client, or fill the app with sample data to try it out.<br><br><button class="btn pri" data-new="leads">Add a lead</button> <button class="btn" data-seed>Load sample data</button></div>`;
@@ -341,8 +393,10 @@ const nav=v=>{const od=db.maint.filter(m=>state(m)[0]==='bad').length;
    <div class="brand">AXIS<i>Ops</i></div>
    <div class="links"><i class="ind"></i>${NAVL.map(([k,l])=>`<a href="#/${k}"${k===v?' class="on"':''}>${l}${k==='maintenance'&&od?`<span class="tag s-bad">${od}</span>`:''}</a>`).join('')}</div>
    <span class="sp"></span>
-   <label for="me">Working as</label>
-   <select id="me">${USERS.map(u=>`<option${u===me?' selected':''}>${u}</option>`).join('')}</select>
+   <label>Signed in as</label>
+   <div style="padding:7px 8px;color:#fff">${esc(me)} <span class="tag">${esc(userRole)}</span></div>
+   <button class="btn" data-name>Change my name</button>
+   ${userRole==='admin'?'<button class="btn" data-team onclick="openTeam()">Manage team access</button>':''}
    <button class="btn" data-search>Search <kbd>Ctrl K</kbd></button>
    <button class="btn" data-export>Export backup</button>
    <button class="btn bad" style="margin-top:8px" onclick="logoutAxis()">Sign Out</button>
@@ -377,8 +431,8 @@ document.addEventListener('click',e=>{
 
 document.addEventListener('change',e=>{
  if(e.target.id==='mine'){mine=e.target.checked;render()}
- if(e.target.id==='me'){me=e.target.value;localStorage.setItem('ax-me',me);render()}
 });
+document.addEventListener('click',e=>{if(e.target.closest('[data-name]'))chooseUsername()});
 document.addEventListener('input',e=>{if(e.target.id==='q')showHits(e.target.value.trim())});
 document.addEventListener('keydown',e=>{
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();openSearch()}
@@ -399,6 +453,7 @@ document.addEventListener('dragend',()=>{dragId=null;document.querySelectorAll('
 addEventListener('hashchange',render);
 
 async function initApp(){
+  await refreshTeam();
   db = await store.load();
   render();
   splashAnim();
