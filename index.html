@@ -74,7 +74,11 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 .first .grid>.card:nth-child(2){animation-delay:.08s}.first .grid>.card:nth-child(3){animation-delay:.16s}.first .grid>.card:nth-child(4){animation-delay:.24s}
 #splash{position:fixed;inset:0;z-index:100;background:#0f1b2d;display:flex;align-items:center;justify-content:center;transition:opacity .6s ease;cursor:pointer}
 #splash.out{opacity:0;pointer-events:none}
-#splash canvas{position:absolute;inset:0;width:100%;height:100%}
+#splash-waves{position:absolute;inset:0}
+.shape-waves{position:relative;width:100%;height:100%;overflow:hidden;pointer-events:none;isolation:isolate}
+.shape-waves__canvas{position:absolute;inset:0;display:block;width:100%;height:100%;opacity:0;transition:opacity 600ms cubic-bezier(.22,1,.36,1);pointer-events:none}
+.shape-waves[data-ready='true'] .shape-waves__canvas{opacity:1}
+#splash[data-wave-ready='true'] .sw{opacity:0}
 .sw{position:relative;z-index:2;font:600 min(22vw,160px) Fraunces,Georgia,serif;letter-spacing:.06em;color:#c9a24b;animation:pulseText 1.5s ease-in-out infinite alternate}
 @keyframes fade{from{opacity:0}}
 @keyframes rise{from{opacity:0;transform:translateY(12px)}}
@@ -84,6 +88,9 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
 @media(max-width:760px){#app{grid-template-columns:1fr}nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap;gap:4px}.brand{width:100%;padding-bottom:10px}.links{display:flex;flex-wrap:wrap}.ind{display:none}.links a.on{background:#1f3560}nav .sp,nav label{display:none}main{padding:18px}}
 @media(prefers-reduced-motion:reduce){*,::before,::backdrop{animation:none!important;transition:none!important}}
 </style>
+<script type="importmap">
+{"imports":{"react":"https://esm.sh/react@18.3.1","react-dom/client":"https://esm.sh/react-dom@18.3.1/client?external=react","vgpu":"https://esm.sh/vgpu"}}
+</script>
 </head>
 <body>
 
@@ -107,7 +114,7 @@ dialog input:focus,dialog select:focus,dialog textarea:focus{outline:0;border-co
     </div>
   </div>
 
-  <div id="splash"><canvas></canvas><b class="sw">AXIS</b></div>
+  <div id="splash"><div id="splash-waves"></div><b class="sw">AXIS</b></div>
   <div id="app"><p class="empty">Loading…</p></div>
   <dialog id="dlg"></dialog>
 
@@ -453,47 +460,56 @@ document.addEventListener('dragend',()=>{dragId=null;document.querySelectorAll('
 addEventListener('hashchange',render);
 
 async function initApp(){
+  await startSplash();
   await refreshTeam();
   db = await store.load();
   render();
   splashAnim();
 }
 
-/* Built-in Canvas Splash Wave Animation */
-function splash(){
-  const el = $('#splash'), cv = $('#splash canvas');
-  if (!el || !cv) return;
-  const ctx = cv.getContext('2d');
-  let w = cv.width = cv.offsetWidth;
-  let h = cv.height = cv.offsetHeight;
-  
-  let step = 0;
-  function draw(){
-    step += 0.03;
-    ctx.fillStyle = '#0f1b2d';
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = '#c9a24b33';
-    ctx.lineWidth = 2;
-    for(let i = 0; i < h; i += 20){
-      ctx.beginPath();
-      for(let x = 0; x < w; x += 10){
-        let y = i + Math.sin(x * 0.01 + step + i * 0.1) * 12;
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      }
-      ctx.stroke();
+let splashRoot=null,splashStartedAt=0,splashFinishTimer=0,splashStartPromise=null;
+async function startSplash(){
+  const el=$('#splash'),mount=$('#splash-waves');
+  if(!el||!mount||splashRoot)return;
+  if(splashStartPromise)return splashStartPromise;
+  splashStartPromise=(async()=>{
+    try{
+      const [{createElement},{createRoot},{default:ShapeWaves}]=await Promise.all([
+        import('react'),import('react-dom/client'),import('./ShapeWaves.js')
+      ]);
+      if(!el.isConnected)return;
+      splashStartedAt=performance.now();
+      splashRoot=createRoot(mount);
+      const observer=new MutationObserver(()=>{
+        if(mount.querySelector('.shape-waves[data-ready="true"]')){
+          el.dataset.waveReady='true';
+          observer.disconnect();
+        }
+      });
+      observer.observe(mount,{subtree:true,attributes:true,attributeFilter:['data-ready']});
+      splashRoot.render(createElement(ShapeWaves,{
+        text:'AXIS',fontFamily:'Fraunces, Georgia, serif',fontWeight:600,textSize:0.58,
+        shapes:'mixed',cellSize:10,dotSize:0.75,color:'#c9a24b',hoverColor:'#ffffff',
+        backgroundColor:'#0f1b2d',speed:1,scale:1.5,contrast:1,brightness:0.4,
+        flow:1.9,direction:0,fade:0.25,interactive:false,splashRadius:40,
+        splashStrength:1.55,glow:0.8,intro:true,introDuration:3.1,paused:false,
+        onError:error=>console.warn('AXIS splash WebGPU unavailable; using the static fallback.',error)
+      }));
+    }catch(error){
+      splashStartedAt=performance.now();
+      console.warn('AXIS splash could not load ShapeWaves; using the static fallback.',error);
     }
-    if(!el.classList.contains('out')) requestAnimationFrame(draw);
-  }
-  draw();
-
-  setTimeout(() => {
-    el.classList.add('out');
-    setTimeout(() => el.remove(), 600);
-  }, 1400);
+  })();
+  return splashStartPromise;
 }
-
 function splashAnim(){
-  splash();
+  const el=$('#splash');
+  if(!el||splashFinishTimer)return;
+  const delay=Math.max(0,3600-(performance.now()-splashStartedAt));
+  splashFinishTimer=setTimeout(()=>{
+    el.classList.add('out');
+    setTimeout(()=>{splashRoot?.unmount();splashRoot=null;el.remove()},600);
+  },delay);
 }
 </script>
 </body>
