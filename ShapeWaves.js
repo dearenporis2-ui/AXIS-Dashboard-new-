@@ -479,7 +479,7 @@ export default function ShapeWaves({
 
     void (async () => {
       try {
-        gpu = await init({ powerPreference: 'low-power' });
+        gpu = await init();
         if (disposed) return gpu.dispose();
         unsubscribeGpuError = gpu.onError(reportFailure);
 
@@ -505,6 +505,7 @@ export default function ShapeWaves({
         });
         const createMaskTexture = (maskWidth, maskHeight) =>
           gpu.device.createTexture({
+            kind: 'texture_2d_f32',
             size: [maskWidth, maskHeight],
             format: 'rgba8unorm',
             usage: ['texture_binding', 'copy_dst', 'render_attachment'],
